@@ -1,0 +1,41 @@
+# TEMPLATE — copy to `suite-apps.yaml` (which IS auto-applied) once the target
+# components exist, and fill in the redirect URIs. Mirrors secrouter-oidc.yaml.
+#
+# Add one provider + application entry per suite service that speaks OIDC:
+#   - SecChat (Mattermost)  — GitLab/OIDC login, redirect .../signup/gitlab/complete
+#   - SecCert console       — if you front its admin with OIDC
+#   - SecLLM management UI   — OIDC login for the model console
+version: 1
+metadata:
+  name: "SecSSO — Suite apps"
+entries:
+  - model: authentik_providers_oauth2.oauth2provider
+    id: provider-secchat
+    identifiers:
+      name: SecChat
+    attrs:
+      name: SecChat
+      client_type: confidential
+      client_id: secchat
+      client_secret: !Env [SECCHAT_CLIENT_SECRET, ""]
+      authorization_flow: !Find [authentik_flows.flow, [slug, default-provider-authorization-explicit-consent]]
+      invalidation_flow: !Find [authentik_flows.flow, [slug, default-provider-invalidation-flow]]
+      signing_key: !Find [authentik_crypto.certificatekeypair, [name, authentik Self-signed Certificate]]
+      redirect_uris:
+        - matching_mode: strict
+          url: !Env [SECCHAT_REDIRECT_URI, "http://localhost:8065/signup/openid/complete"]
+      property_mappings:
+        - !Find [authentik_providers_oauth2.scopemapping, [scope_name, openid]]
+        - !Find [authentik_providers_oauth2.scopemapping, [scope_name, profile]]
+        - !Find [authentik_providers_oauth2.scopemapping, [scope_name, email]]
+
+  - model: authentik_core.application
+    id: app-secchat
+    identifiers:
+      slug: secchat
+    attrs:
+      name: SecChat
+      slug: secchat
+      provider: !KeyOf provider-secchat
+      meta_launch_url: "http://localhost:8065"
+      meta_description: "Team chat (Mattermost)"

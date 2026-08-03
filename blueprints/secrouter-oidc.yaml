@@ -1,0 +1,65 @@
+# SecSSO blueprint — OIDC provider + application for SecRouter (the gateway).
+# Auto-discovered from /blueprints/secsso and applied by Authentik on startup.
+#
+# Targets Authentik 2024.x schema (brands, list-form redirect_uris). If you pin a
+# different release, validate on apply — Authentik logs blueprint errors to the worker.
+#
+# Result: SecRouter's admin console signs in via OIDC PKCE against SecSSO. The
+# client_id matches SecRouter's `security.oidc.audience` ("secrouter"), and a groups
+# scope is included so SecRouter can enforce per-group policy from the token.
+version: 1
+metadata:
+  name: "SecSSO — SecRouter OIDC"
+  labels:
+    blueprints.goauthentik.io/description: "OIDC provider + application for the SecRouter gateway"
+context:
+  secrouter_client_id: secrouter
+entries:
+  # A groups scope so the ID/access token carries the user's group names.
+  - model: authentik_providers_oauth2.scopemapping
+    id: scope-groups
+    identifiers:
+      managed: secsso/scope-groups
+    attrs:
+      name: "SecSSO groups scope"
+      scope_name: groups
+      description: "Group membership — SecRouter maps these to per-group policy."
+      expression: |
+        return [group.name for group in request.user.ak_groups.all()]
+
+  - model: authentik_providers_oauth2.oauth2provider
+    id: provider-secrouter
+    identifiers:
+      name: SecRouter
+    attrs:
+      name: SecRouter
+      # Public client — the admin console signs in with OIDC + PKCE (no client secret
+      # in the browser). Add a separate confidential provider for machine
+      # (client-credentials) clients if you need them.
+      client_type: public
+      client_id: !Context secrouter_client_id
+      authorization_flow: !Find [authentik_flows.flow, [slug, default-provider-authorization-explicit-consent]]
+      invalidation_flow: !Find [authentik_flows.flow, [slug, default-provider-invalidation-flow]]
+      signing_key: !Find [authentik_crypto.certificatekeypair, [name, authentik Self-signed Certificate]]
+      sub_mode: hashed_user_id
+      include_claims_in_id_token: true
+      redirect_uris:
+        - matching_mode: strict
+          url: !Env [SECROUTER_REDIRECT_URI, "http://localhost:18800/admin/callback"]
+      property_mappings:
+        - !Find [authentik_providers_oauth2.scopemapping, [scope_name, openid]]
+        - !Find [authentik_providers_oauth2.scopemapping, [scope_name, profile]]
+        - !Find [authentik_providers_oauth2.scopemapping, [scope_name, email]]
+        - !KeyOf scope-groups
+
+  - model: authentik_core.application
+    id: app-secrouter
+    identifiers:
+      slug: secrouter
+    attrs:
+      name: SecRouter
+      slug: secrouter
+      provider: !KeyOf provider-secrouter
+      meta_launch_url: "http://localhost:18800/admin"
+      meta_description: "Governed AI gateway"
+      meta_publisher: "SecRouter suite"

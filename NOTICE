@@ -1,0 +1,9 @@
+SecSSO
+Copyright 2026 Austin Probe
+
+Licensed under the Apache License, Version 2.0 (see LICENSE).
+
+SecSSO packages, brands, and pre-wires Authentik (https://goauthentik.io) as the
+optional single-sign-on component of the SecRouter suite. Authentik itself is a
+third-party project distributed under its own license; it is not included in this
+repository — its container images are pulled at deploy time.

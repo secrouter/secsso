@@ -1,0 +1,14 @@
+# SecSSO blueprint — brand the default login/consent experience as SecSSO.
+# Targets Authentik 2024.x (the `authentik_brands.brand` model; earlier releases used
+# `authentik_tenants.tenant`). Upload your own logo/favicon and repoint the paths below.
+version: 1
+metadata:
+  name: "SecSSO — Branding"
+entries:
+  - model: authentik_brands.brand
+    identifiers:
+      domain: authentik-default
+    attrs:
+      branding_title: "SecSSO"
+      branding_logo: "/static/dist/assets/icons/icon_left_brand.svg"
+      branding_favicon: "/static/dist/assets/icons/icon.png"
