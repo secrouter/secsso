@@ -1,0 +1,92 @@
+# SecSSO blueprint — public OIDC client for the `pi` CLI (per-developer login). Auto-
+# discovered from /blueprints/secsso and applied by Authentik on startup, alongside
+# secrouter-oidc.yaml. Targets the same Authentik 2024.x schema as the other blueprints
+# here — see secrouter-oidc.yaml's header for the general notes. The device-code flow this
+# client needs is enabled instance-wide in branding.yaml — see that file.
+#
+# Result: a developer runs `pi login` (or equivalent), which drives either:
+#   - the OAuth2 Device Authorization Grant, RFC 8628 (the primary path — headless/SSH-
+#     friendly): pi requests a device + user code from /application/o/device/, prints the
+#     verification URL, the developer approves in any browser (on any machine), pi polls
+#     the token endpoint; or
+#   - a normal PKCE authorization-code login via a local loopback redirect, for the case
+#     where pi can open a browser itself on the same machine.
+# Either way the token is issued to the DEVELOPER'S OWN Authentik identity (their username/
+# password/passkey — nothing shared or stored by this blueprint) and SecRouter's OIDC
+# validator accepts it:
+#   issuer:   the shared instance-wide issuer (issuer_mode: global — see below and
+#             secrouter-oidc.yaml), so it matches the same `security.oidc.issuer` as the
+#             human/PKCE admin-console login.
+#   audience: contains "secrouter" — see the scope-secagent-pi-audience mapping below; pi's
+#             device/token requests MUST include `secrouter` in `scope`
+#             (e.g. `scope=openid profile email secrouter`) or the token will be rejected.
+#   sub:      hashed per-user id (sub_mode below) — same value this developer would get
+#             signing into the SecRouter admin console, so ordinary per-user
+#             `security.policy.users[<sub>]` / group policy applies unchanged.
+#
+# Public client — no secret; neither PKCE nor device-code need one for a public client.
+version: 1
+metadata:
+  name: "SecSSO — pi CLI device login"
+  labels:
+    blueprints.goauthentik.io/description: "Public OIDC client (device-code + PKCE) for the pi CLI"
+context:
+  pi_client_id: secagent-pi
+entries:
+  # Authentik has no per-provider "audience" field in the 2024.x line — an issued token's
+  # `aud` is always the requesting client_id, and client_id must be globally unique, so this
+  # provider can't simply *be* client_id "secrouter" (secrouter-oidc.yaml already is).
+  # Requesting this scope adds "secrouter" to the token's `aud` via the expression below —
+  # this is why pi's device/token requests must include `secrouter` in `scope` (see header).
+  - model: authentik_providers_oauth2.scopemapping
+    id: scope-secagent-pi-audience
+    identifiers:
+      managed: secsso/scope-secagent-pi-audience
+    attrs:
+      name: "SecSSO SecRouter audience (pi CLI)"
+      scope_name: secrouter
+      description: "Required so SecRouter accepts this token — adds SecRouter's audience."
+      expression: |
+        return {"aud": [provider.client_id, "secrouter"]}
+
+  - model: authentik_providers_oauth2.oauth2provider
+    id: provider-secagent-pi
+    identifiers:
+      name: SecAgent pi CLI
+    attrs:
+      name: SecAgent pi CLI
+      client_type: public
+      client_id: !Context pi_client_id
+      authorization_flow: !Find [authentik_flows.flow, [slug, default-provider-authorization-explicit-consent]]
+      invalidation_flow: !Find [authentik_flows.flow, [slug, default-provider-invalidation-flow]]
+      signing_key: !Find [authentik_crypto.certificatekeypair, [name, authentik Self-signed Certificate]]
+      # Shared instance-wide issuer so this provider's tokens carry the same `iss` as
+      # secrouter-oidc.yaml's — see that file's header for why per-provider (the Authentik
+      # default) can't work here.
+      issuer_mode: global
+      # Matches secrouter-oidc.yaml, so the same developer gets the same `sub` from the
+      # admin console and from pi.
+      sub_mode: hashed_user_id
+      include_claims_in_id_token: true
+      # Loopback redirect for the optional browser-based PKCE path (see header). Device-code
+      # login — the primary path — never redirects a browser at all, so this is only reached
+      # if pi drives a local PKCE login instead.
+      redirect_uris:
+        - matching_mode: strict
+          url: !Env [SECAGENT_PI_REDIRECT_URI, "http://localhost:8765/callback"]
+      property_mappings:
+        - !Find [authentik_providers_oauth2.scopemapping, [scope_name, openid]]
+        - !Find [authentik_providers_oauth2.scopemapping, [scope_name, profile]]
+        - !Find [authentik_providers_oauth2.scopemapping, [scope_name, email]]
+        - !KeyOf scope-secagent-pi-audience
+
+  - model: authentik_core.application
+    id: app-secagent-pi
+    identifiers:
+      slug: secagent-pi
+    attrs:
+      name: SecAgent pi CLI
+      slug: secagent-pi
+      provider: !KeyOf provider-secagent-pi
+      meta_description: "pi CLI device login — per-developer OIDC token for SecRouter"
+      meta_publisher: "SecRouter suite"
