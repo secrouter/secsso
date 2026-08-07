@@ -54,6 +54,10 @@ services:
       AUTHENTIK_BOOTSTRAP_PASSWORD: ${AUTHENTIK_BOOTSTRAP_PASSWORD:-}
       AUTHENTIK_BOOTSTRAP_TOKEN: ${AUTHENTIK_BOOTSTRAP_TOKEN:-}
       AUTHENTIK_BOOTSTRAP_EMAIL: ${AUTHENTIK_BOOTSTRAP_EMAIL:-admin@secrouter.local}
+      # Read by blueprints/secagent-service.yaml's `!Env` — compose only passes through .env
+      # keys a service's `environment:` block explicitly lists, so this must be here even
+      # though the value itself lives in .env (see SECAGENT_SERVICE_CLIENT_SECRET there).
+      SECAGENT_SERVICE_CLIENT_SECRET: ${SECAGENT_SERVICE_CLIENT_SECRET:-}
     volumes:
       - ./blueprints:/blueprints/secsso:ro
       - media:/media
@@ -86,6 +90,10 @@ services:
       AUTHENTIK_BOOTSTRAP_PASSWORD: ${AUTHENTIK_BOOTSTRAP_PASSWORD:-}
       AUTHENTIK_BOOTSTRAP_TOKEN: ${AUTHENTIK_BOOTSTRAP_TOKEN:-}
       AUTHENTIK_BOOTSTRAP_EMAIL: ${AUTHENTIK_BOOTSTRAP_EMAIL:-admin@secrouter.local}
+      # Read by blueprints/secagent-service.yaml's `!Env` — compose only passes through .env
+      # keys a service's `environment:` block explicitly lists, so this must be here even
+      # though the value itself lives in .env (see SECAGENT_SERVICE_CLIENT_SECRET there).
+      SECAGENT_SERVICE_CLIENT_SECRET: ${SECAGENT_SERVICE_CLIENT_SECRET:-}
     volumes:
       - ./blueprints:/blueprints/secsso:ro
       - media:/media

@@ -1,0 +1,52 @@
+# SecSSO blueprint — OIDC device-authorization (RFC 8628) provider + application for
+# `secagent login` / pi's per-user identity (see secagent's docs/configuration.md and
+# src/secagent/config.py's SecSSOConfig — this file's shape is referenced there by name).
+#
+# PUBLIC client (no secret — RFC 8628 SS3.1 device clients need none; confirmed live that
+# Authentik's /application/o/device/ endpoint works for any existing public-client-type
+# provider with no extra "enable device flow" field to set — the same endpoint SecRouter's own
+# public client already uses for its browser login).
+#
+# client_id MUST be "secagent-pi" — secagent's SecSSOConfig.device_client_id default and
+# `secagent init`'s generated config.yaml both hardcode it, matching this blueprint by name.
+version: 1
+metadata:
+  name: "SecSSO — secagent-pi (device-code, per-developer)"
+  labels:
+    blueprints.goauthentik.io/description: "OIDC device-authorization provider for `secagent login` / pi"
+context:
+  pi_client_id: secagent-pi
+entries:
+  - model: authentik_providers_oauth2.oauth2provider
+    id: provider-secagent-pi
+    identifiers:
+      name: secagent-pi
+    attrs:
+      name: secagent-pi
+      client_type: public
+      client_id: !Context pi_client_id
+      authorization_flow: !Find [authentik_flows.flow, [slug, default-provider-authorization-explicit-consent]]
+      invalidation_flow: !Find [authentik_flows.flow, [slug, default-provider-invalidation-flow]]
+      signing_key: !Find [authentik_crypto.certificatekeypair, [name, authentik Self-signed Certificate]]
+      sub_mode: hashed_user_id
+      include_claims_in_id_token: true
+      # Required by this Authentik version's blueprint serializer even for a device-flow
+      # client that never redirects anywhere — confirmed live (`ak apply_blueprint` fails
+      # loudly with "This field is required" otherwise). An empty list satisfies it.
+      redirect_uris: []
+      property_mappings:
+        - !Find [authentik_providers_oauth2.scopemapping, [scope_name, openid]]
+        - !Find [authentik_providers_oauth2.scopemapping, [scope_name, profile]]
+        - !Find [authentik_providers_oauth2.scopemapping, [scope_name, email]]
+        - !Find [authentik_providers_oauth2.scopemapping, [scope_name, secrouter]]
+
+  - model: authentik_core.application
+    id: app-secagent-pi
+    identifiers:
+      slug: secagent-pi
+    attrs:
+      name: secagent-pi
+      slug: secagent-pi
+      provider: !KeyOf provider-secagent-pi
+      meta_description: "pi / secagent CLI — per-developer device-code login (`secagent login`)"
+      meta_publisher: "SecRouter suite"

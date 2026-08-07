@@ -1,0 +1,60 @@
+# SecSSO blueprint — OAuth2 client_credentials (RFC 6749 SS4.4) provider + application for
+# secagent's shared service identity (`secagent token`, headless calls — see secagent's
+# docs/configuration.md and src/secagent/config.py's SecSSOConfig; this file's shape is
+# referenced there by name).
+#
+# client_credentials is NOT automatically available on a confidential-type provider — verified
+# against authentik's own source (providers/oauth2/views/token.py): it requires `grant_types` to
+# explicitly list `client_credentials`, AND an `authentik_core.application` bound to the
+# provider (token.py raises invalid_grant with no Application row, even though no launch URL/
+# consent screen is ever shown for this grant — Authentik auto-creates a SERVICE_ACCOUNT-type
+# user scoped to that Application to represent the caller).
+#
+# client_id MUST be "secagent" — secagent's SecSSOConfig.client_id default. client_secret is
+# read from the container's own SECAGENT_SERVICE_CLIENT_SECRET env var (see compose.yaml +
+# .env.example) rather than hardcoded here — secdeploy auto-generates it (blank-key convention,
+# same as AUTHENTIK_SECRET_KEY/PG_PASS) and mirrors the SAME value into secagent's own
+# SECAGENT_CLIENT_SECRET, so the two independently-generated-looking values are actually one.
+version: 1
+metadata:
+  name: "SecSSO — secagent (client_credentials, service identity)"
+  labels:
+    blueprints.goauthentik.io/description: "OAuth2 client_credentials provider for secagent's shared service token"
+context:
+  service_client_id: secagent
+entries:
+  - model: authentik_providers_oauth2.oauth2provider
+    id: provider-secagent-service
+    identifiers:
+      name: secagent-service
+    attrs:
+      name: secagent-service
+      client_type: confidential
+      client_id: !Context service_client_id
+      client_secret: !Env SECAGENT_SERVICE_CLIENT_SECRET
+      grant_types:
+        - client_credentials
+      # authorization_flow/invalidation_flow/redirect_uris are never actually USED for a pure
+      # client_credentials grant (no login/consent/redirect ever happens) but this Authentik
+      # version's blueprint serializer requires all three regardless — confirmed live (`ak
+      # apply_blueprint` fails loudly with "This field is required" without them), despite the
+      # underlying Provider model itself allowing authorization_flow to be null.
+      authorization_flow: !Find [authentik_flows.flow, [slug, default-provider-authorization-explicit-consent]]
+      invalidation_flow: !Find [authentik_flows.flow, [slug, default-provider-invalidation-flow]]
+      redirect_uris: []
+      signing_key: !Find [authentik_crypto.certificatekeypair, [name, authentik Self-signed Certificate]]
+      include_claims_in_id_token: true
+      property_mappings:
+        - !Find [authentik_providers_oauth2.scopemapping, [scope_name, openid]]
+        - !Find [authentik_providers_oauth2.scopemapping, [scope_name, secrouter]]
+
+  - model: authentik_core.application
+    id: app-secagent-service
+    identifiers:
+      slug: secagent-service
+    attrs:
+      name: secagent-service
+      slug: secagent-service
+      provider: !KeyOf provider-secagent-service
+      meta_description: "secagent's shared service identity (headless client_credentials calls)"
+      meta_publisher: "SecRouter suite"
