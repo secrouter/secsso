@@ -1,0 +1,34 @@
+# TEMPLATE — the shape of the users blueprint. In the suite you do NOT write this by hand:
+# declare a `[[users]]` list in your secsite.toml and `secdeploy` renders it (with a random
+# initial password per user) into `users.generated.yaml` here, auto-applied on SecSSO's next
+# boot. This example is a reference for that generated file, or for a manual install.
+#
+# Requires blueprints/force-password-reset.yaml (ships alongside) for `reset_password` to gate
+# login. `state: created` = create once, then NEVER update — so a user's later password change
+# is never clobbered by a re-apply. `users.generated.yaml` is gitignored (holds initial passwords).
+version: 1
+metadata:
+  name: "SecSSO — Users (example)"
+entries:
+  # Groups first, so users can reference them. Name them to match SecRouter's
+  # `security.policy.groups` so per-group tiers/budgets apply from the token (see docs/production.md).
+  - model: authentik_core.group
+    state: present
+    identifiers:
+      name: analysts
+    attrs:
+      name: analysts
+
+  - model: authentik_core.user
+    state: created            # create-once; never overwrite a password the user has changed
+    identifiers:
+      username: alice
+    attrs:
+      name: "Alice Analyst"
+      email: alice@example.mil
+      type: internal
+      password: "REPLACED-WITH-A-RANDOM-VALUE-BY-SECDEPLOY"
+      groups:
+        - !Find [authentik_core.group, [name, analysts]]
+      attributes:
+        reset_password: true  # force a new password on first login (see force-password-reset.yaml)

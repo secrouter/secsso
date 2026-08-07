@@ -87,6 +87,25 @@ The two built-in flows patched for the background (`default-authentication-flow`
 `default-provider-authorization-explicit-consent`) ship with every Authentik install; if
 yours were renamed, repoint those slugs in `branding.yaml` or drop the two entries.
 
+## Onboarding users
+
+Two blueprints turn the manual "log in as `akadmin` and create users by hand" step into a
+declared, repeatable one:
+
+- **`blueprints/force-password-reset.yaml`** (ships, applied automatically) makes a
+  `reset_password: true` user attribute force a password change on that user's next login —
+  the reusable infra behind must-reset-on-first-login. (It patches `default-authentication-flow`;
+  validate on apply against your pinned `AUTHENTIK_TAG` — see the file's header.)
+- **`blueprints/users.generated.yaml`** — you don't write this by hand. Declare a `[[users]]`
+  list (username / email / groups) in your **SecDeploy** `secsite.toml`, and `secdeploy deploy`
+  renders it here with a **random initial password** per user (printed once, for you to
+  distribute) and `state: created` so a user's later password change is never overwritten. It's
+  gitignored (it holds those initial passwords). `blueprints/users.yaml.example` shows the shape
+  for a manual install.
+
+Groups referenced by a user are created too — name them to match SecRouter's
+`security.policy.groups` so per-group tiers/budgets apply straight from the token.
+
 ## Configuration (`.env`)
 
 | Variable | Meaning |
