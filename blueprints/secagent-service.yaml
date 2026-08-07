@@ -58,3 +58,4 @@ entries:
       provider: !KeyOf provider-secagent-service
       meta_description: "secagent's shared service identity (headless client_credentials calls)"
       meta_publisher: "SecRouter suite"
+      meta_icon: "/media/secsso/icon-secagent.svg"

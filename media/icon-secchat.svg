@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 56 56" role="img" aria-label="SecChat">
+  <!-- User-portal app tile: suite hexagon with a channel hash (SecChat / Mattermost). -->
+  <rect width="56" height="56" rx="12" fill="#54672f"/>
+  <polygon points="28,8 45,18 45,38 28,48 11,38 11,18" fill="none" stroke="#f3f1e5" stroke-width="3.2" stroke-linejoin="round"/>
+  <path d="M25.5 21 L23.5 35 M34 21 L32 35 M20.5 26 L35.5 26 M19.5 30 L34.5 30" stroke="#cdd6a6" stroke-width="2.3" stroke-linecap="round"/>
+</svg>

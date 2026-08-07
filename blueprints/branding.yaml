@@ -24,12 +24,32 @@ version: 1
 metadata:
   name: "SecSSO — Branding"
 entries:
+  # ── Suite branding on the login + consent journey ──────────────────────────────────
+  # Patch the two built-in flows every sign-in passes through so the login page carries the
+  # SecRouter hexagon lattice instead of Authentik's stock photo. These slugs ship with every
+  # Authentik install (the providers already `!Find` the consent one), so this is an update,
+  # not a create — only `background` is touched. If a deployment renamed its default flows,
+  # repoint the slugs (or drop these two entries).
+  - model: authentik_flows.flow
+    identifiers:
+      slug: default-authentication-flow
+    attrs:
+      background: "/media/secsso/secsso-background.svg"
+
+  - model: authentik_flows.flow
+    identifiers:
+      slug: default-provider-authorization-explicit-consent
+    attrs:
+      background: "/media/secsso/secsso-background.svg"
+
   - model: authentik_brands.brand
     identifiers:
       domain: authentik-default
     attrs:
       default: true
       branding_title: "SecSSO"
-      branding_logo: "/static/dist/assets/icons/icon_left_brand.svg"
-      branding_favicon: "/static/dist/assets/icons/icon.png"
+      # Real suite assets, served from /media/secsso by compose.yaml's read-only bind (not
+      # Authentik's bundled /static icons). Theme-adaptive SVGs — see secsso/media.
+      branding_logo: "/media/secsso/secsso-logo.svg"
+      branding_favicon: "/media/secsso/secsso-icon.svg"
       flow_device_code: !Find [authentik_flows.flow, [slug, default-provider-authorization-explicit-consent]]

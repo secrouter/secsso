@@ -61,6 +61,11 @@ services:
     volumes:
       - ./blueprints:/blueprints/secsso:ro
       - media:/media
+      # Suite brand assets, served read-only at /media/secsso/* (referenced by
+      # blueprints/branding.yaml). A nested bind over the named `media` volume, so
+      # Authentik keeps its own runtime media while our logo/favicon/background ship
+      # from the repo — no outbound fetch, which matters for air-gapped installs.
+      - ./media:/media/secsso:ro
     ports:
       - "${SECSSO_HTTP_PORT:-9000}:9000"
       - "${SECSSO_HTTPS_PORT:-9443}:9443"
@@ -97,6 +102,11 @@ services:
     volumes:
       - ./blueprints:/blueprints/secsso:ro
       - media:/media
+      # Suite brand assets, served read-only at /media/secsso/* (referenced by
+      # blueprints/branding.yaml). A nested bind over the named `media` volume, so
+      # Authentik keeps its own runtime media while our logo/favicon/background ship
+      # from the repo — no outbound fetch, which matters for air-gapped installs.
+      - ./media:/media/secsso:ro
     depends_on:
       postgresql:
         condition: service_healthy

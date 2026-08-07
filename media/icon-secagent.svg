@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 56 56" role="img" aria-label="SecAgent">
+  <!-- User-portal app tile: suite hexagon with a chat-ops bubble (SecAgent / pi). -->
+  <rect width="56" height="56" rx="12" fill="#54672f"/>
+  <polygon points="28,8 45,18 45,38 28,48 11,38 11,18" fill="none" stroke="#f3f1e5" stroke-width="3.2" stroke-linejoin="round"/>
+  <rect x="18.5" y="21" width="19" height="12.5" rx="3" fill="#cdd6a6"/>
+  <path d="M23.5 33.5 L23.5 38 L28 33.5 Z" fill="#cdd6a6"/>
+  <circle cx="24" cy="27.2" r="1.5" fill="#54672f"/><circle cx="28" cy="27.2" r="1.5" fill="#54672f"/><circle cx="32" cy="27.2" r="1.5" fill="#54672f"/>
+</svg>

@@ -50,3 +50,4 @@ entries:
       provider: !KeyOf provider-secagent-pi
       meta_description: "pi / secagent CLI — per-developer device-code login (`secagent login`)"
       meta_publisher: "SecRouter suite"
+      meta_icon: "/media/secsso/icon-secagent.svg"

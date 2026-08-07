@@ -55,6 +55,33 @@ equivalent OIDC app there (public client, PKCE, a `groups` claim). In SecDeploy 
 `blueprints/suite-apps.yaml.example` → `suite-apps.yaml` (auto-applied), set the redirect
 URIs, and restart. Each is one provider + application entry.
 
+## Branding
+
+Out of the box the login, consent, and device-authorization screens carry the SecRouter
+suite identity — the olive hexagon mark, the `SEC`-accented wordmark, and IBM Plex — instead
+of stock Authentik. It's applied by `blueprints/branding.yaml` and on by default; nothing to
+turn on.
+
+The assets live in [`media/`](media) and are **served from the repo**, not fetched from the
+internet — `compose.yaml` bind-mounts `./media` read-only to `/media/secsso`, so branding
+works unchanged in an air-gapped enclave:
+
+| Asset | Where it shows |
+|---|---|
+| `secsso-logo.svg` | login/consent card header (theme-adaptive — light or dark) |
+| `secsso-icon.svg` | browser favicon |
+| `secsso-background.svg` | full-bleed login background (hexagon lattice) |
+| `icon-secrouter.svg`, `icon-secagent.svg`, `icon-secchat.svg` | app tiles in the user portal |
+
+**Customize** by dropping your own files into `media/` (keep the names, or repoint the paths
+in `branding.yaml` / the app blueprints' `meta_icon`) and re-running `./bootstrap/secsso.sh up`.
+To brand additional apps, add an `icon-<app>.svg` and set `meta_icon: /media/secsso/icon-<app>.svg`
+on the application entry — see `blueprints/suite-apps.yaml.example`.
+
+The two built-in flows patched for the background (`default-authentication-flow`,
+`default-provider-authorization-explicit-consent`) ship with every Authentik install; if
+yours were renamed, repoint those slugs in `branding.yaml` or drop the two entries.
+
 ## Configuration (`.env`)
 
 | Variable | Meaning |

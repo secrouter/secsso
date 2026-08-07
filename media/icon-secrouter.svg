@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 56 56" role="img" aria-label="SecRouter">
+  <!-- User-portal app tile: suite hexagon with the 3-way routing node. -->
+  <rect width="56" height="56" rx="12" fill="#54672f"/>
+  <polygon points="28,8 45,18 45,38 28,48 11,38 11,18" fill="none" stroke="#f3f1e5" stroke-width="3.2" stroke-linejoin="round"/>
+  <path d="M28 30 L28 18 M28 30 L19.5 39 M28 30 L36.5 39" stroke="#dfe4c4" stroke-width="2.4" stroke-linecap="round"/>
+  <circle cx="28" cy="18" r="2.3" fill="#dfe4c4"/><circle cx="19.5" cy="39" r="2.3" fill="#dfe4c4"/><circle cx="36.5" cy="39" r="2.3" fill="#dfe4c4"/>
+  <circle cx="28" cy="30" r="3.9" fill="#cdd6a6"/>
+</svg>

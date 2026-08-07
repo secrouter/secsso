@@ -39,3 +39,7 @@ entries:
       provider: !KeyOf provider-secchat
       meta_launch_url: "http://localhost:8065"
       meta_description: "Team chat (Mattermost)"
+      meta_publisher: "SecRouter suite"
+      # Suite app tile, served from the media bind (see compose.yaml). Ships in
+      # secsso/media; add your own /media/secsso/icon-<app>.svg for SecCert / SecLLM.
+      meta_icon: "/media/secsso/icon-secchat.svg"

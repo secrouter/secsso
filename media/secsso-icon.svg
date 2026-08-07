@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 56 56" role="img" aria-label="SecSSO">
+  <!-- Favicon + brand icon. Suite hexagon with a keyhole = secure sign-on. -->
+  <rect width="56" height="56" rx="12" fill="#54672f"/>
+  <polygon points="28,8 45,18 45,38 28,48 11,38 11,18" fill="none" stroke="#f3f1e5" stroke-width="3.4" stroke-linejoin="round"/>
+  <circle cx="28" cy="25" r="5" fill="#cdd6a6"/>
+  <path d="M25.7 27.6 L24.7 34.5 L31.3 34.5 L30.3 27.6 Z" fill="#cdd6a6"/>
+</svg>

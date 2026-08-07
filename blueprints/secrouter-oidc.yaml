@@ -63,3 +63,4 @@ entries:
       meta_launch_url: "http://localhost:18800/admin"
       meta_description: "Governed AI gateway"
       meta_publisher: "SecRouter suite"
+      meta_icon: "/media/secsso/icon-secrouter.svg"
