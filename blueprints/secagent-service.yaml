@@ -1,131 +1,60 @@
-# SecSSO blueprint — OAuth2 client-credentials (M2M) provider + service account for
-# SecAgent, the headless scanning agent/bot. Auto-discovered from /blueprints/secsso and
-# applied by Authentik on startup, alongside secrouter-oidc.yaml. Targets the same
-# Authentik 2024.x schema as the other blueprints here — see secrouter-oidc.yaml's header
-# for the general notes.
+# SecSSO blueprint — OAuth2 client_credentials (RFC 6749 SS4.4) provider + application for
+# secagent's shared service identity (`secagent token`, headless calls — see secagent's
+# docs/configuration.md and src/secagent/config.py's SecSSOConfig; this file's shape is
+# referenced there by name).
 #
-# Result: SecAgent authenticates with the OAuth2 client_credentials grant and gets back a
-# JWT that SecRouter's OIDC validator accepts:
-#   issuer:   the shared instance-wide issuer (issuer_mode: global — see below and
-#             secrouter-oidc.yaml), NOT a per-app issuer, so it matches the same
-#             `security.oidc.issuer` as the human/PKCE admin-console login.
-#   audience: contains "secrouter" — see the scope-secagent-service-audience mapping below.
-#   sub:      this service account's Authentik username, "svc-secagent" — stable across
-#             restarts, human-legible in SecRouter's audit log, and exactly the string an
-#             operator lists in SecRouter's `security.oidc.serviceSubjects` to exempt this
-#             one machine identity from the interactive-MFA gate (see
-#             secrouter/src/security/identity/oidc.ts and .../types.ts — client-credentials
-#             tokens can never carry an MFA `amr`, so without `serviceSubjects` a
-#             `requireMfa: true` deployment would reject this client entirely). Per-sub
-#             policy (budget/model/tier) is then `security.policy.users["svc-secagent"]`.
+# client_credentials is NOT automatically available on a confidential-type provider — verified
+# against authentik's own source (providers/oauth2/views/token.py): it requires `grant_types` to
+# explicitly list `client_credentials`, AND an `authentik_core.application` bound to the
+# provider (token.py raises invalid_grant with no Application row, even though no launch URL/
+# consent screen is ever shown for this grant — Authentik auto-creates a SERVICE_ACCOUNT-type
+# user scoped to that Application to represent the caller).
 #
-# Why a hand-declared service account instead of the provider's own client_secret:
-# Authentik has no per-provider "enable client_credentials" toggle in the 2024.x line (that
-# arrived in later releases) — any confidential OAuth2 provider accepts grant_type=
-# client_credentials at the token endpoint. Authenticating with the PROVIDER'S OWN
-# client_secret works too, but mints an Authentik-auto-generated, unpredictably-named
-# service account ("ak-<provider name>-client_credentials") — no good for `serviceSubjects`,
-# which needs an exact, known `sub` up front. So this blueprint declares the service account
-# explicitly and authenticates it with Authentik's "username + app password"
-# client-credentials method instead:
-#
-#   POST <issuer>application/o/token/
-#   Content-Type: application/x-www-form-urlencoded
-#
-#   grant_type=client_credentials&client_id=secagent&username=svc-secagent
-#   &password=<SECAGENT_CLIENT_SECRET>&scope=openid secrouter
-#
-# ("secrouter" in scope is required — see the mapping below; without it the token's
-# audience won't include SecRouter's and will be rejected.) The provider's own
-# (randomly-generated, never surfaced anywhere) client_secret is intentionally left unset:
-# the app password below is the only credential meant to be used.
-#
-# See: https://docs.goauthentik.io/add-secure-apps/providers/oauth2/client_credentials/
+# client_id MUST be "secagent" — secagent's SecSSOConfig.client_id default. client_secret is
+# read from the container's own SECAGENT_SERVICE_CLIENT_SECRET env var (see compose.yaml +
+# .env.example) rather than hardcoded here — secdeploy auto-generates it (blank-key convention,
+# same as AUTHENTIK_SECRET_KEY/PG_PASS) and mirrors the SAME value into secagent's own
+# SECAGENT_CLIENT_SECRET, so the two independently-generated-looking values are actually one.
 version: 1
 metadata:
-  name: "SecSSO — SecAgent service account"
+  name: "SecSSO — secagent (client_credentials, service identity)"
   labels:
-    blueprints.goauthentik.io/description: "OIDC client-credentials (M2M) provider + service account for SecAgent"
+    blueprints.goauthentik.io/description: "OAuth2 client_credentials provider for secagent's shared service token"
 context:
-  secagent_client_id: secagent
-  secagent_service_account_username: svc-secagent
-  # No raw secret in this file — only an env-var reference. Unset in .env ⇒ the token
-  # entry below is skipped entirely (conditions:), so the account is simply left without a
-  # usable credential rather than minting one with a blank password.
-  secagent_client_secret: !Env [SECAGENT_CLIENT_SECRET, null]
+  service_client_id: secagent
 entries:
-  - model: authentik_core.user
-    id: user-secagent
-    identifiers:
-      username: !Context secagent_service_account_username
-    attrs:
-      name: "SecAgent (service account)"
-      type: service_account
-
-  # Authentik has no per-provider "audience" field in the 2024.x line — an issued token's
-  # `aud` is always the requesting client_id, and client_id must be globally unique, so this
-  # provider can't simply *be* client_id "secrouter" (secrouter-oidc.yaml already is).
-  # Requesting this scope adds "secrouter" to the token's `aud` via the expression below —
-  # this is why the token request above includes `secrouter` in `scope`.
-  - model: authentik_providers_oauth2.scopemapping
-    id: scope-secagent-service-audience
-    identifiers:
-      managed: secsso/scope-secagent-service-audience
-    attrs:
-      name: "SecSSO SecRouter audience (SecAgent service account)"
-      scope_name: secrouter
-      description: "Required so SecRouter accepts this token — adds SecRouter's audience."
-      expression: |
-        return {"aud": [provider.client_id, "secrouter"]}
-
   - model: authentik_providers_oauth2.oauth2provider
-    id: provider-secagent
+    id: provider-secagent-service
     identifiers:
-      name: SecAgent
+      name: secagent-service
     attrs:
-      name: SecAgent
-      # Confidential in name — client_credentials requires *some* client authentication —
-      # but see the header: the credential actually used is the service account's app
-      # password below, not this field's own auto-generated secret.
+      name: secagent-service
       client_type: confidential
-      client_id: !Context secagent_client_id
+      client_id: !Context service_client_id
+      client_secret: !Env SECAGENT_SERVICE_CLIENT_SECRET
+      grant_types:
+        - client_credentials
+      # authorization_flow/invalidation_flow/redirect_uris are never actually USED for a pure
+      # client_credentials grant (no login/consent/redirect ever happens) but this Authentik
+      # version's blueprint serializer requires all three regardless — confirmed live (`ak
+      # apply_blueprint` fails loudly with "This field is required" without them), despite the
+      # underlying Provider model itself allowing authorization_flow to be null.
       authorization_flow: !Find [authentik_flows.flow, [slug, default-provider-authorization-explicit-consent]]
       invalidation_flow: !Find [authentik_flows.flow, [slug, default-provider-invalidation-flow]]
+      redirect_uris: []
       signing_key: !Find [authentik_crypto.certificatekeypair, [name, authentik Self-signed Certificate]]
-      # Shared instance-wide issuer so this provider's tokens carry the same `iss` as
-      # secrouter-oidc.yaml's — see that file's header for why per-provider (the Authentik
-      # default) can't work here.
-      issuer_mode: global
-      # Pin `sub` to the service account's username (see header) instead of a hash, so it's
-      # a stable, predictable, human-legible service identity — required for SecRouter's
-      # `security.oidc.serviceSubjects` allow-list to name it.
-      sub_mode: user_username
       include_claims_in_id_token: true
       property_mappings:
         - !Find [authentik_providers_oauth2.scopemapping, [scope_name, openid]]
-        - !KeyOf scope-secagent-service-audience
+        - !Find [authentik_providers_oauth2.scopemapping, [scope_name, secrouter]]
 
   - model: authentik_core.application
-    id: app-secagent
+    id: app-secagent-service
     identifiers:
-      slug: secagent
+      slug: secagent-service
     attrs:
-      name: SecAgent
-      slug: secagent
-      provider: !KeyOf provider-secagent
-      meta_description: "Headless scanning agent — machine-to-machine access to SecRouter"
+      name: secagent-service
+      slug: secagent-service
+      provider: !KeyOf provider-secagent-service
+      meta_description: "secagent's shared service identity (headless client_credentials calls)"
       meta_publisher: "SecRouter suite"
-
-  # The service account's app password ("client secret" for this flow — see header). Only
-  # created/updated when SECAGENT_CLIENT_SECRET is set (conditions: below) — see context:.
-  - model: authentik_core.token
-    id: token-secagent
-    identifiers:
-      identifier: secagent-service-account-password
-      intent: app_password
-      expiring: false
-      user: !KeyOf user-secagent
-    attrs:
-      key: !Context secagent_client_secret
-    conditions:
-      - !If [!Context secagent_client_secret]

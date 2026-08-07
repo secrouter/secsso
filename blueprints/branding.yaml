@@ -1,36 +1,35 @@
-# SecSSO blueprint — brand the default login/consent experience as SecSSO, and enable the
-# OAuth2 device-authorization ("device code") grant instance-wide.
+# SecSSO blueprint — brand the default login/consent experience as SecSSO.
 # Targets Authentik 2024.x (the `authentik_brands.brand` model; earlier releases used
 # `authentik_tenants.tenant`). Upload your own logo/favicon and repoint the paths below.
 #
-# Device code is a *brand*-level, instance-wide setting in the 2024.x line — there's no
-# per-provider on/off switch until later Authentik releases. The flow below is what makes
-# /application/o/device/ issue codes at all; blueprints/secagent-pi.yaml (the pi CLI client)
-# is its only consumer today, but enabling it here makes device-code available to every
-# OAuth2 client in this Authentik, not just that one — there's nothing in this schema
-# version to scope it further with.
-# See: https://docs.goauthentik.io/add-secure-apps/providers/oauth2/device_code/
+# `identifiers.domain: authentik-default` is NOT a real hostname to match against — it's this
+# blueprint's OWN idempotency key (Authentik resolves a Brand for an incoming request by an
+# EXACT `domain` match against the request's actual Host header, or by `default: true` as the
+# catch-all). Since no request's Host is literally "authentik-default", and this row was never
+# marked `default`, it never actually applied to live traffic — confirmed live: the browser's
+# own tab title stayed the stock "authentik", and Authentik's server log showed
+# `"brand": "<Brand: Brand fallback>"` (its own in-memory, unconfigured default) for every
+# request to secsso.sec.internal, not this row. `default: true` is what actually activates it
+# as the fallback for THIS single-tenant instance (no other brand ever competes for that flag).
+#
+# flow_device_code: REQUIRED for the OAuth2 device-authorization flow (RFC 8628 — `secagent
+# login` / secagent-pi.yaml) to work at all — confirmed live (not from docs) that Authentik's
+# DeviceEntryView 404s for any AUTHENTICATED request to /device when the resolved brand has no
+# flow_device_code, even though every OTHER flow_* field on Brand has an internal fallback and
+# works fine unset. Unauthenticated requests never hit this — they short-circuit at the view's
+# login_required wrapper and redirect to login first, which is why the bug only shows up
+# post-login. Points at the same consent flow already used for authorization_flow on
+# secagent-pi.yaml/secagent-service.yaml/secrouter-oidc.yaml's providers.
 version: 1
 metadata:
   name: "SecSSO — Branding"
 entries:
-  - model: authentik_flows.flow
-    id: flow-device-code
-    identifiers:
-      slug: secsso-device-code
-    attrs:
-      name: SecSSO Device Code
-      title: "Authorize this device"
-      designation: stage_configuration
-      # The device-code verification screen identifies the approving user, so Authentik
-      # requires a session to already exist before it runs.
-      authentication: require_authenticated
-
   - model: authentik_brands.brand
     identifiers:
       domain: authentik-default
     attrs:
+      default: true
       branding_title: "SecSSO"
       branding_logo: "/static/dist/assets/icons/icon_left_brand.svg"
       branding_favicon: "/static/dist/assets/icons/icon.png"
-      flow_device_code: !KeyOf flow-device-code
+      flow_device_code: !Find [authentik_flows.flow, [slug, default-provider-authorization-explicit-consent]]
