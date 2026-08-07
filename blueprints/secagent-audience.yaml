@@ -1,0 +1,36 @@
+# SecSSO blueprint — shared "secrouter" audience scope mapping.
+#
+# SecRouter's OIDC verifier (jose's jwtVerify) requires every accepted token's `aud` claim to
+# contain "secrouter" (its own client_id — see secrouter-oidc.yaml, where audience == client_id
+# trivially). secagent-pi.yaml and secagent-service.yaml are DIFFERENT client_ids
+# ("secagent-pi"/"secagent"), so their tokens would otherwise carry the WRONG audience by
+# default (Authentik sets `aud` = the issuing provider's own client_id unless overridden).
+#
+# Authentik merges every granted scope mapping's expression return value into the final token
+# claims (see IDToken.to_dict()'s claims.update() — a plain top-level key overwrite, applied
+# identically for every grant type: authorization_code, refresh_token, client_credentials, and
+# device_code). A mapping that returns {"aud": [...]} therefore overrides the default audience
+# outright — verified against authentik's own source (id_token.py / views/userinfo.py /
+# views/token.py), not just its docs.
+#
+# Split into its OWN file (named to sort alphabetically BEFORE secagent-pi.yaml/
+# secagent-service.yaml, which both !Find this by scope_name) rather than duplicated inline in
+# either, so there is exactly one place either provider's property_mappings resolves to. Even if
+# blueprint discovery order ever changes, Authentik's blueprint reconciler re-applies
+# periodically — a transient !Find miss on first boot self-heals on the next pass.
+version: 1
+metadata:
+  name: "SecSSO — SecRouter audience scope (shared by secagent-pi/secagent-service)"
+entries:
+  - model: authentik_providers_oauth2.scopemapping
+    id: scope-secrouter-audience
+    identifiers:
+      managed: secsso/scope-secrouter-audience
+    attrs:
+      name: "SecRouter audience"
+      scope_name: secrouter
+      description: >-
+        Adds "secrouter" to the issued token's aud claim, so SecRouter's OIDC verifier
+        (audience == "secrouter") accepts tokens from clients other than SecRouter's own.
+      expression: |
+        return {"aud": ["secrouter"]}

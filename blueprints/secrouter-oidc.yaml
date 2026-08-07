@@ -7,21 +7,6 @@
 # Result: SecRouter's admin console signs in via OIDC PKCE against SecSSO. The
 # client_id matches SecRouter's `security.oidc.audience` ("secrouter"), and a groups
 # scope is included so SecRouter can enforce per-group policy from the token.
-#
-# issuer_mode: global — SecAgent's two clients (blueprints/secagent-service.yaml,
-# secagent-pi.yaml) need to be usable against this SAME SecRouter `security.oidc` config
-# (one issuer, one audience — see secrouter/src/security/types.ts's SecurityConfig, it
-# only ever holds a single `oidc` block), but they can't share THIS provider's client_id
-# ("secrouter" — client_id is globally unique in Authentik). Authentik's default
-# (issuer_mode: per_provider) bases `iss` on the application slug, so three different-
-# slugged apps would get three different issuers — no single `security.oidc.issuer` string
-# could match all of them. `global` makes `iss` the bare instance root
-# (`${SECSSO_EXTERNAL_URL}/`) for every provider that sets it, which is why all three now
-# do. NOTE: this also moves the per-app `/.well-known/openid-configuration` out from under
-# the issuer (that path stays per-app-slug even in global mode — Authentik doesn't serve a
-# discovery doc at the bare root) — set SecRouter's `security.oidc.jwksUri` explicitly
-# instead of relying on discovery; see the bootstrap output / README.
-# See: https://docs.goauthentik.io/add-secure-apps/providers/oauth2/
 version: 1
 metadata:
   name: "SecSSO — SecRouter OIDC"
@@ -49,15 +34,13 @@ entries:
     attrs:
       name: SecRouter
       # Public client — the admin console signs in with OIDC + PKCE (no client secret
-      # in the browser). For machine (client-credentials) and CLI (device-code) clients,
-      # see blueprints/secagent-service.yaml and blueprints/secagent-pi.yaml.
+      # in the browser). Add a separate confidential provider for machine
+      # (client-credentials) clients if you need them.
       client_type: public
       client_id: !Context secrouter_client_id
       authorization_flow: !Find [authentik_flows.flow, [slug, default-provider-authorization-explicit-consent]]
       invalidation_flow: !Find [authentik_flows.flow, [slug, default-provider-invalidation-flow]]
       signing_key: !Find [authentik_crypto.certificatekeypair, [name, authentik Self-signed Certificate]]
-      # Shared instance-wide issuer — see the header comment.
-      issuer_mode: global
       sub_mode: hashed_user_id
       include_claims_in_id_token: true
       redirect_uris:
