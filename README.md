@@ -50,10 +50,15 @@ equivalent OIDC app there (public client, PKCE, a `groups` claim). In SecDeploy 
 
 ## Wiring the rest of the suite
 
-`blueprints/secrouter-oidc.yaml` is applied automatically. To add SSO for **SecChat**
-(Mattermost), the **SecCert** console, or the **SecLLM** UI as they come online, copy
-`blueprints/suite-apps.yaml.example` → `suite-apps.yaml` (auto-applied), set the redirect
-URIs, and restart. Each is one provider + application entry.
+`blueprints/secrouter-oidc.yaml`, `blueprints/secagent-*.yaml`, and
+`blueprints/secassist.yaml` are applied automatically. `secassist.yaml` wires the
+**SecAssist** chat UI (LibreChat): a confidential login client (`secassist`) plus a
+`client_credentials` service account (`secassist-svc`) whose token the SecRouter auth proxy
+uses to call the gateway on each user's behalf — see secassist/docs/governance.md.
+
+To add SSO for **SecChat** (Mattermost), the **SecCert** console, or the **SecLLM** UI as
+they come online, copy `blueprints/suite-apps.yaml.example` → `suite-apps.yaml`
+(auto-applied), set the redirect URIs, and restart. Each is one provider + application entry.
 
 ## Branding
 
@@ -71,7 +76,7 @@ works unchanged in an air-gapped enclave:
 | `secsso-logo.svg` | login/consent card header (theme-adaptive — light or dark) |
 | `secsso-icon.svg` | browser favicon |
 | `secsso-background.svg` | full-bleed login background (hexagon lattice) |
-| `icon-secrouter.svg`, `icon-secagent.svg`, `icon-secchat.svg` | app tiles in the user portal |
+| `icon-secrouter.svg`, `icon-secagent.svg`, `icon-secchat.svg`, `icon-secassist.svg` | app tiles in the user portal |
 
 **Customize** by dropping your own files into `media/` (keep the names, or repoint the paths
 in `branding.yaml` / the app blueprints' `meta_icon`) and re-running `./bootstrap/secsso.sh up`.

@@ -1,0 +1,92 @@
+# SecSSO blueprint — SecAssist (LibreChat) OIDC login client + client_credentials service
+# account. Auto-discovered from /blueprints/secsso and applied by Authentik on startup.
+#
+# Two clients, like SecAgent:
+#   • secassist      — CONFIDENTIAL login client for the LibreChat UI (Authorization Code).
+#                      Users sign in here; LibreChat discovers OIDC from this app's issuer,
+#                      so it keeps the DEFAULT per-provider issuer_mode (NOT global) — the
+#                      discovery doc must live under ${issuer}. aud defaults to "secassist",
+#                      which is exactly what LibreChat validates.
+#   • secassist-svc  — client_credentials service identity for the SecRouter auth proxy.
+#                      Mirrors secagent-service.yaml (same shape, same reliance on Authentik's
+#                      auto service account, same shared "secrouter" audience scope). Its token
+#                      sub (svc-secassist) is what SecRouter authorizes in serviceSubjects +
+#                      delegatingSubjects — see secassist/docs/governance.md.
+version: 1
+metadata:
+  name: "SecSSO — SecAssist OIDC (login + service)"
+  labels:
+    blueprints.goauthentik.io/description: "OIDC login client + client_credentials service account for SecAssist (LibreChat)"
+context:
+  login_client_id: secassist
+  service_client_id: secassist-svc
+entries:
+  # ── Login: confidential OIDC client for the LibreChat UI ──
+  - model: authentik_providers_oauth2.oauth2provider
+    id: provider-secassist
+    identifiers:
+      name: SecAssist
+    attrs:
+      name: SecAssist
+      client_type: confidential
+      client_id: !Context login_client_id
+      client_secret: !Env SECASSIST_CLIENT_SECRET
+      authorization_flow: !Find [authentik_flows.flow, [slug, default-provider-authorization-explicit-consent]]
+      invalidation_flow: !Find [authentik_flows.flow, [slug, default-provider-invalidation-flow]]
+      signing_key: !Find [authentik_crypto.certificatekeypair, [name, authentik Self-signed Certificate]]
+      sub_mode: hashed_user_id
+      include_claims_in_id_token: true
+      redirect_uris:
+        - matching_mode: strict
+          url: !Env [SECASSIST_REDIRECT_URI, "https://secassist.sec.internal/oauth/callback/openid"]
+      property_mappings:
+        - !Find [authentik_providers_oauth2.scopemapping, [scope_name, openid]]
+        - !Find [authentik_providers_oauth2.scopemapping, [scope_name, profile]]
+        - !Find [authentik_providers_oauth2.scopemapping, [scope_name, email]]
+        - !Find [authentik_providers_oauth2.scopemapping, [scope_name, groups]]
+
+  - model: authentik_core.application
+    id: app-secassist
+    identifiers:
+      slug: secassist
+    attrs:
+      name: SecAssist
+      slug: secassist
+      provider: !KeyOf provider-secassist
+      meta_launch_url: !Env [SECASSIST_LAUNCH_URL, "https://secassist.sec.internal"]
+      meta_description: "Governed AI chat (LibreChat)"
+      meta_publisher: "SecRouter suite"
+      meta_icon: "/media/secsso/icon-secassist.svg"
+
+  # ── Service: client_credentials identity for the SecRouter auth proxy ──
+  - model: authentik_providers_oauth2.oauth2provider
+    id: provider-secassist-svc
+    identifiers:
+      name: secassist-svc
+    attrs:
+      name: secassist-svc
+      client_type: confidential
+      client_id: !Context service_client_id
+      client_secret: !Env SECASSIST_SVC_CLIENT_SECRET
+      grant_types:
+        - client_credentials
+      authorization_flow: !Find [authentik_flows.flow, [slug, default-provider-authorization-explicit-consent]]
+      invalidation_flow: !Find [authentik_flows.flow, [slug, default-provider-invalidation-flow]]
+      redirect_uris: []
+      signing_key: !Find [authentik_crypto.certificatekeypair, [name, authentik Self-signed Certificate]]
+      include_claims_in_id_token: true
+      property_mappings:
+        - !Find [authentik_providers_oauth2.scopemapping, [scope_name, openid]]
+        - !Find [authentik_providers_oauth2.scopemapping, [scope_name, secrouter]]
+
+  - model: authentik_core.application
+    id: app-secassist-svc
+    identifiers:
+      slug: secassist-svc
+    attrs:
+      name: secassist-svc
+      slug: secassist-svc
+      provider: !KeyOf provider-secassist-svc
+      meta_description: "SecAssist service identity (proxy → SecRouter, client_credentials)"
+      meta_publisher: "SecRouter suite"
+      meta_icon: "/media/secsso/icon-secassist.svg"
