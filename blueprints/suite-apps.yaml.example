@@ -5,6 +5,13 @@
 #   - SecChat (Mattermost)  — GitLab/OIDC login, redirect .../signup/gitlab/complete
 #   - SecCert console       — if you front its admin with OIDC
 #   - SecLLM management UI   — OIDC login for the model console
+#
+# NOTE: the native SecChat rebuild (`secchatng` — see blueprints/secchatng.yaml, auto-applied)
+# now has its own real, first-class blueprint — don't add another entry for it here. The
+# Mattermost entry below is named "SecChat (Mattermost)", not bare "SecChat", specifically so
+# the two can coexist without their `identifiers.name` colliding: suite.toml's `secchatng` is
+# EXPERIMENTAL and meant to run "alongside" the incumbent Mattermost `secchat` during evaluation
+# (see suite.toml's comment), so both blueprints may well be applied at the same time.
 version: 1
 metadata:
   name: "SecSSO — Suite apps"
@@ -12,9 +19,9 @@ entries:
   - model: authentik_providers_oauth2.oauth2provider
     id: provider-secchat
     identifiers:
-      name: SecChat
+      name: SecChat (Mattermost)
     attrs:
-      name: SecChat
+      name: SecChat (Mattermost)
       client_type: confidential
       client_id: secchat
       client_secret: !Env [SECCHAT_CLIENT_SECRET, ""]
@@ -34,7 +41,7 @@ entries:
     identifiers:
       slug: secchat
     attrs:
-      name: SecChat
+      name: SecChat (Mattermost)
       slug: secchat
       provider: !KeyOf provider-secchat
       meta_launch_url: "http://localhost:8065"

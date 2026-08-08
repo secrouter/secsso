@@ -1,0 +1,54 @@
+# SecSSO blueprint — native SecChat (secchatng) OIDC login client. Auto-discovered from
+# /blueprints/secsso and applied by Authentik on startup.
+#
+# ONE confidential client — unlike secassist.yaml's login+service pair, secchatng's backend runs
+# the whole Authorization Code + PKCE dance itself, server-side (a BFF: the browser only ever
+# gets an httpOnly session cookie, never a token), so there's no separate SecRouter-auth-proxy
+# service identity to provision here. Users sign in here; secchatng discovers OIDC from this
+# app's issuer, so it keeps the DEFAULT per-provider issuer_mode (NOT global) — the discovery
+# doc must live under ${issuer}. aud defaults to "secchatng", which is exactly what secchatng's
+# SECCHAT_OIDC_AUDIENCE validates.
+version: 1
+metadata:
+  name: "SecSSO — SecChat (native) OIDC login"
+  labels:
+    blueprints.goauthentik.io/description: "OIDC login client for the native SecChat (secchatng) BFF"
+context:
+  login_client_id: secchatng
+entries:
+  # ── Login: confidential OIDC client for the SecChat BFF (server-side auth-code + PKCE) ──
+  - model: authentik_providers_oauth2.oauth2provider
+    id: provider-secchatng
+    identifiers:
+      name: SecChat
+    attrs:
+      name: SecChat
+      client_type: confidential
+      client_id: !Context login_client_id
+      client_secret: !Env SECCHATNG_OIDC_CLIENT_SECRET
+      authorization_flow: !Find [authentik_flows.flow, [slug, default-provider-authorization-explicit-consent]]
+      invalidation_flow: !Find [authentik_flows.flow, [slug, default-provider-invalidation-flow]]
+      signing_key: !Find [authentik_crypto.certificatekeypair, [name, authentik Self-signed Certificate]]
+      sub_mode: hashed_user_id
+      include_claims_in_id_token: true
+      redirect_uris:
+        - matching_mode: strict
+          url: !Env [SECCHATNG_REDIRECT_URI, "https://secchatng.sec.internal/auth/callback"]
+      property_mappings:
+        - !Find [authentik_providers_oauth2.scopemapping, [scope_name, openid]]
+        - !Find [authentik_providers_oauth2.scopemapping, [scope_name, profile]]
+        - !Find [authentik_providers_oauth2.scopemapping, [scope_name, email]]
+        - !Find [authentik_providers_oauth2.scopemapping, [scope_name, groups]]
+
+  - model: authentik_core.application
+    id: app-secchatng
+    identifiers:
+      slug: secchatng
+    attrs:
+      name: SecChat
+      slug: secchatng
+      provider: !KeyOf provider-secchatng
+      meta_launch_url: !Env [SECCHATNG_LAUNCH_URL, "https://secchatng.sec.internal"]
+      meta_description: "Native auditable team + agentic chat (SecChat rebuild)"
+      meta_publisher: "SecRouter suite"
+      meta_icon: "/media/secsso/icon-secchat.svg"
