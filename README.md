@@ -118,6 +118,22 @@ Groups referenced by a user are created too — name them to match SecRouter's
 | `SECSSO_HTTP_PORT` / `SECSSO_HTTPS_PORT` | published ports (9000 / 9443) |
 | `SECROUTER_REDIRECT_URI` | SecRouter admin-console callback (blueprint redirect URI) |
 
+## Backup
+
+The control helper exposes self-contained `backup`/`restore` verbs — the suite orchestrator
+(`secdeploy backup`) calls these and encrypts the result, but they also work standalone:
+
+```bash
+./bootstrap/secsso.sh backup  ./snap   # → authentik.sql + users.generated.yaml + .env into ./snap
+./bootstrap/secsso.sh restore ./snap   # reinitialize Authentik's Postgres from ./snap (REPLACES state)
+```
+
+The dumped `.env` travels with the SQL: `AUTHENTIK_SECRET_KEY` (which encrypts secrets Authentik
+stores) and `PG_PASS` must match the dump, so `restore` reinstates `.env` and reinitializes
+Postgres from a clean volume before loading. For the encrypted, whole-suite backup — including
+the users' initial passwords in `users.generated.yaml` — see
+[secdeploy](https://github.com/secrouter/secdeploy)'s runbooks.
+
 ## Notes
 
 - **Container-based on every target.** Authentik is a multi-service Django app; SecSSO runs
