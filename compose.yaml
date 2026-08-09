@@ -63,6 +63,11 @@ services:
       SECASSIST_SVC_CLIENT_SECRET: ${SECASSIST_SVC_CLIENT_SECRET:-}
       # SecChat (native, experimental) — read by blueprints/secchatng.yaml's `!Env`.
       SECCHATNG_OIDC_CLIENT_SECRET: ${SECCHATNG_OIDC_CLIENT_SECRET:-}
+      # secchatng's OIDC callback + launch URL — SecDeploy writes these into .env from the topology
+      # so the blueprint registers the redirect_uri for wherever secchatng is actually fronted
+      # (else the blueprint's `!Env` falls back to the sec.internal default and login 400s).
+      SECCHATNG_REDIRECT_URI: ${SECCHATNG_REDIRECT_URI:-}
+      SECCHATNG_LAUNCH_URL: ${SECCHATNG_LAUNCH_URL:-}
     volumes:
       - ./blueprints:/blueprints/secsso:ro
       - media:/media
@@ -109,6 +114,11 @@ services:
       SECASSIST_SVC_CLIENT_SECRET: ${SECASSIST_SVC_CLIENT_SECRET:-}
       # SecChat (native, experimental) — read by blueprints/secchatng.yaml's `!Env`.
       SECCHATNG_OIDC_CLIENT_SECRET: ${SECCHATNG_OIDC_CLIENT_SECRET:-}
+      # secchatng's OIDC callback + launch URL — SecDeploy writes these into .env from the topology
+      # so the blueprint registers the redirect_uri for wherever secchatng is actually fronted
+      # (else the blueprint's `!Env` falls back to the sec.internal default and login 400s).
+      SECCHATNG_REDIRECT_URI: ${SECCHATNG_REDIRECT_URI:-}
+      SECCHATNG_LAUNCH_URL: ${SECCHATNG_LAUNCH_URL:-}
     volumes:
       - ./blueprints:/blueprints/secsso:ro
       - media:/media
