@@ -1,0 +1,69 @@
+# SecSSO blueprint — SecLLM (inference control plane) ADMIN OIDC login client. Auto-discovered
+# from /blueprints/secsso and applied by Authentik on startup.
+#
+# This gates SecLLM's ADMIN plane (its /admin console + control API) only — NOT inference. SecRouter
+# already governs client access to /v1, and the SecRouter↔SecLLM link keeps its own shared token, so
+# there is no inference service identity to provision here; this is purely "who may administer the
+# model server". ONE confidential client — SecLLM's optional browser-login BFF runs the whole
+# Authorization Code + PKCE dance itself, server-side (the browser only ever gets an httpOnly
+# session cookie, never a token). SecLLM discovers OIDC from this app's issuer, so it keeps the
+# DEFAULT per-provider issuer_mode (NOT global) — the discovery doc must live under ${issuer}. aud
+# defaults to "secllm", which SecLLM's SECLLM_OIDC_AUDIENCE validates. Brand-new client, so its id,
+# slug, and display name are all plainly "secllm".
+#
+# Also provisions the `secllm-admins` group: SecLLM's SECLLM_ADMIN_GROUP (default `secllm-admins`)
+# requires a login to carry this group to administer the server — being a valid SecSSO user is
+# necessary but not sufficient. Add operators to this group in the Authentik admin UI (or via the
+# users blueprint) to grant them SecLLM admin.
+version: 1
+metadata:
+  name: "SecSSO — SecLLM admin OIDC login"
+  labels:
+    blueprints.goauthentik.io/description: "OIDC login client + admin group for the SecLLM admin console"
+context:
+  login_client_id: secllm
+entries:
+  # ── The admin group SecLLM gates on (SECLLM_ADMIN_GROUP). Membership ⇒ may administer SecLLM. ──
+  - model: authentik_core.group
+    id: group-secllm-admins
+    identifiers:
+      name: secllm-admins
+    attrs:
+      name: secllm-admins
+
+  # ── Login: confidential OIDC client for the SecLLM admin BFF (server-side auth-code + PKCE) ──
+  - model: authentik_providers_oauth2.oauth2provider
+    id: provider-secllm
+    identifiers:
+      name: SecLLM
+    attrs:
+      name: SecLLM
+      client_type: confidential
+      client_id: !Context login_client_id
+      client_secret: !Env SECLLM_OIDC_CLIENT_SECRET
+      authorization_flow: !Find [authentik_flows.flow, [slug, default-provider-authorization-explicit-consent]]
+      invalidation_flow: !Find [authentik_flows.flow, [slug, default-provider-invalidation-flow]]
+      signing_key: !Find [authentik_crypto.certificatekeypair, [name, authentik Self-signed Certificate]]
+      sub_mode: hashed_user_id
+      include_claims_in_id_token: true
+      redirect_uris:
+        - matching_mode: strict
+          url: !Env [SECLLM_REDIRECT_URI, "https://secllm.sec.internal/auth/callback"]
+      property_mappings:
+        - !Find [authentik_providers_oauth2.scopemapping, [scope_name, openid]]
+        - !Find [authentik_providers_oauth2.scopemapping, [scope_name, profile]]
+        - !Find [authentik_providers_oauth2.scopemapping, [scope_name, email]]
+        - !Find [authentik_providers_oauth2.scopemapping, [scope_name, groups]]
+
+  - model: authentik_core.application
+    id: app-secllm
+    identifiers:
+      slug: secllm
+    attrs:
+      name: SecLLM
+      slug: secllm
+      provider: !KeyOf provider-secllm
+      meta_launch_url: !Env [SECLLM_LAUNCH_URL, "https://secllm.sec.internal/admin"]
+      meta_description: "Self-hosted model serving — load/unload/health of the inference tier (admins)"
+      meta_publisher: "SecRouter suite"
+      meta_icon: "/media/secsso/icon-secllm.svg"

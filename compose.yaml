@@ -72,6 +72,10 @@ services:
       # (else the blueprint's `!Env` falls back to the sec.internal default and login 400s).
       SECRECORDER_REDIRECT_URI: ${SECRECORDER_REDIRECT_URI:-}
       SECRECORDER_LAUNCH_URL: ${SECRECORDER_LAUNCH_URL:-}
+      # secllm admin OIDC login client (blueprints/secllm.yaml) — gates SecLLM's /admin console only.
+      SECLLM_OIDC_CLIENT_SECRET: ${SECLLM_OIDC_CLIENT_SECRET:-}
+      SECLLM_REDIRECT_URI: ${SECLLM_REDIRECT_URI:-}
+      SECLLM_LAUNCH_URL: ${SECLLM_LAUNCH_URL:-}
     volumes:
       - ./blueprints:/blueprints/secsso:ro
       - media:/media
@@ -127,6 +131,10 @@ services:
       # (else the blueprint's `!Env` falls back to the sec.internal default and login 400s).
       SECRECORDER_REDIRECT_URI: ${SECRECORDER_REDIRECT_URI:-}
       SECRECORDER_LAUNCH_URL: ${SECRECORDER_LAUNCH_URL:-}
+      # secllm admin OIDC login client (blueprints/secllm.yaml) — gates SecLLM's /admin console only.
+      SECLLM_OIDC_CLIENT_SECRET: ${SECLLM_OIDC_CLIENT_SECRET:-}
+      SECLLM_REDIRECT_URI: ${SECLLM_REDIRECT_URI:-}
+      SECLLM_LAUNCH_URL: ${SECLLM_LAUNCH_URL:-}
     volumes:
       - ./blueprints:/blueprints/secsso:ro
       - media:/media

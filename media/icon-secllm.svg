@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 56 56" role="img" aria-label="SecLLM">
+  <!-- User-portal app tile: suite hexagon with a stacked-GPU / model-serving glyph (SecLLM). -->
+  <rect width="56" height="56" rx="12" fill="#2f5a67"/>
+  <polygon points="28,8 45,18 45,38 28,48 11,38 11,18" fill="none" stroke="#f3f1e5" stroke-width="3.2" stroke-linejoin="round"/>
+  <rect x="18" y="20" width="20" height="6" rx="2" fill="#cdd6a6"/>
+  <rect x="18" y="30" width="20" height="6" rx="2" fill="#a6c6d6"/>
+  <circle cx="22" cy="23" r="1.4" fill="#2f5a67"/>
+  <circle cx="22" cy="33" r="1.4" fill="#2f5a67"/>
+</svg>
