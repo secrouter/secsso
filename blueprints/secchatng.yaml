@@ -1,7 +1,7 @@
 # SecSSO blueprint — native SecChat (secchatng) OIDC login client. Auto-discovered from
 # /blueprints/secsso and applied by Authentik on startup.
 #
-# ONE confidential client — unlike secassist.yaml's login+service pair, secchatng's backend runs
+# ONE confidential client — secchatng's backend runs
 # the whole Authorization Code + PKCE dance itself, server-side (a BFF: the browser only ever
 # gets an httpOnly session cookie, never a token), so there's no separate SecRouter-auth-proxy
 # service identity to provision here. Users sign in here; secchatng discovers OIDC from this

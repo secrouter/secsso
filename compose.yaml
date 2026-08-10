@@ -58,9 +58,6 @@ services:
       # keys a service's `environment:` block explicitly lists, so this must be here even
       # though the value itself lives in .env (see SECAGENT_SERVICE_CLIENT_SECRET there).
       SECAGENT_SERVICE_CLIENT_SECRET: ${SECAGENT_SERVICE_CLIENT_SECRET:-}
-      # SecAssist (LibreChat) — read by blueprints/secassist.yaml's `!Env` (login + service).
-      SECASSIST_CLIENT_SECRET: ${SECASSIST_CLIENT_SECRET:-}
-      SECASSIST_SVC_CLIENT_SECRET: ${SECASSIST_SVC_CLIENT_SECRET:-}
       # SecChat (native, experimental) — read by blueprints/secchatng.yaml's `!Env`.
       SECCHATNG_OIDC_CLIENT_SECRET: ${SECCHATNG_OIDC_CLIENT_SECRET:-}
       # secchatng's OIDC callback + launch URL — SecDeploy writes these into .env from the topology
@@ -109,9 +106,6 @@ services:
       # keys a service's `environment:` block explicitly lists, so this must be here even
       # though the value itself lives in .env (see SECAGENT_SERVICE_CLIENT_SECRET there).
       SECAGENT_SERVICE_CLIENT_SECRET: ${SECAGENT_SERVICE_CLIENT_SECRET:-}
-      # SecAssist (LibreChat) — read by blueprints/secassist.yaml's `!Env` (login + service).
-      SECASSIST_CLIENT_SECRET: ${SECASSIST_CLIENT_SECRET:-}
-      SECASSIST_SVC_CLIENT_SECRET: ${SECASSIST_SVC_CLIENT_SECRET:-}
       # SecChat (native, experimental) — read by blueprints/secchatng.yaml's `!Env`.
       SECCHATNG_OIDC_CLIENT_SECRET: ${SECCHATNG_OIDC_CLIENT_SECRET:-}
       # secchatng's OIDC callback + launch URL — SecDeploy writes these into .env from the topology

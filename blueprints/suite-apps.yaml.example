@@ -1,52 +1,50 @@
 # TEMPLATE — copy to `suite-apps.yaml` (which IS auto-applied) once the target
 # components exist, and fill in the redirect URIs. Mirrors secrouter-oidc.yaml.
 #
-# Add one provider + application entry per suite service that speaks OIDC:
-#   - SecChat (Mattermost)  — GitLab/OIDC login, redirect .../signup/gitlab/complete
+# The suite services that speak OIDC and ship their OWN auto-applied blueprint —
+# SecRouter (secrouter-oidc.yaml), SecChat (secchatng.yaml), SecAgent (secagent-*.yaml) —
+# need NO entry here. Use this template only for services that don't yet have a blueprint,
+# e.g.:
 #   - SecCert console       — if you front its admin with OIDC
 #   - SecLLM management UI   — OIDC login for the model console
 #
-# NOTE: the native SecChat rebuild (`secchatng` — see blueprints/secchatng.yaml, auto-applied)
-# now has its own real, first-class blueprint — don't add another entry for it here. The
-# Mattermost entry below is named "SecChat (Mattermost)", not bare "SecChat", specifically so
-# the two can coexist without their `identifiers.name` colliding: suite.toml's `secchatng` is
-# EXPERIMENTAL and meant to run "alongside" the incumbent Mattermost `secchat` during evaluation
-# (see suite.toml's comment), so both blueprints may well be applied at the same time.
+# The single entry below is a generic worked example — rename it and set your client_id,
+# redirect URI, launch URL, and icon; add one provider + application pair per app.
 version: 1
 metadata:
   name: "SecSSO — Suite apps"
 entries:
   - model: authentik_providers_oauth2.oauth2provider
-    id: provider-secchat
+    id: provider-example
     identifiers:
-      name: SecChat (Mattermost)
+      name: Example app
     attrs:
-      name: SecChat (Mattermost)
+      name: Example app
       client_type: confidential
-      client_id: secchat
-      client_secret: !Env [SECCHAT_CLIENT_SECRET, ""]
+      client_id: example-app
+      client_secret: !Env [EXAMPLE_CLIENT_SECRET, ""]
       authorization_flow: !Find [authentik_flows.flow, [slug, default-provider-authorization-explicit-consent]]
       invalidation_flow: !Find [authentik_flows.flow, [slug, default-provider-invalidation-flow]]
       signing_key: !Find [authentik_crypto.certificatekeypair, [name, authentik Self-signed Certificate]]
       redirect_uris:
         - matching_mode: strict
-          url: !Env [SECCHAT_REDIRECT_URI, "http://localhost:8065/signup/openid/complete"]
+          url: !Env [EXAMPLE_REDIRECT_URI, "https://example.sec.internal/oidc/callback"]
       property_mappings:
         - !Find [authentik_providers_oauth2.scopemapping, [scope_name, openid]]
         - !Find [authentik_providers_oauth2.scopemapping, [scope_name, profile]]
         - !Find [authentik_providers_oauth2.scopemapping, [scope_name, email]]
 
   - model: authentik_core.application
-    id: app-secchat
+    id: app-example
     identifiers:
-      slug: secchat
+      slug: example-app
     attrs:
-      name: SecChat (Mattermost)
-      slug: secchat
-      provider: !KeyOf provider-secchat
-      meta_launch_url: "http://localhost:8065"
-      meta_description: "Team chat (Mattermost)"
+      name: Example app
+      slug: example-app
+      provider: !KeyOf provider-example
+      meta_launch_url: "https://example.sec.internal"
+      meta_description: "Example OIDC app"
       meta_publisher: "SecRouter suite"
-      # Suite app tile, served from the media bind (see compose.yaml). Ships in
-      # secsso/media; add your own /media/secsso/icon-<app>.svg for SecCert / SecLLM.
-      meta_icon: "/media/secsso/icon-secchat.svg"
+      # Suite app tile, served from the media bind (see compose.yaml). Add your own
+      # /media/secsso/icon-<app>.svg per app and point meta_icon at it.
+      meta_icon: "/media/secsso/icon-example.svg"
