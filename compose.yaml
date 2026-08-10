@@ -65,6 +65,13 @@ services:
       # (else the blueprint's `!Env` falls back to the sec.internal default and login 400s).
       SECCHATNG_REDIRECT_URI: ${SECCHATNG_REDIRECT_URI:-}
       SECCHATNG_LAUNCH_URL: ${SECCHATNG_LAUNCH_URL:-}
+      # SecRecorder (transcription) — read by blueprints/secrecorder.yaml's `!Env`.
+      SECRECORDER_OIDC_CLIENT_SECRET: ${SECRECORDER_OIDC_CLIENT_SECRET:-}
+      # secrecorder's OIDC callback + launch URL — SecDeploy writes these into .env from the topology
+      # so the blueprint registers the redirect_uri for wherever secrecorder is actually fronted
+      # (else the blueprint's `!Env` falls back to the sec.internal default and login 400s).
+      SECRECORDER_REDIRECT_URI: ${SECRECORDER_REDIRECT_URI:-}
+      SECRECORDER_LAUNCH_URL: ${SECRECORDER_LAUNCH_URL:-}
     volumes:
       - ./blueprints:/blueprints/secsso:ro
       - media:/media
@@ -113,6 +120,13 @@ services:
       # (else the blueprint's `!Env` falls back to the sec.internal default and login 400s).
       SECCHATNG_REDIRECT_URI: ${SECCHATNG_REDIRECT_URI:-}
       SECCHATNG_LAUNCH_URL: ${SECCHATNG_LAUNCH_URL:-}
+      # SecRecorder (transcription) — read by blueprints/secrecorder.yaml's `!Env`.
+      SECRECORDER_OIDC_CLIENT_SECRET: ${SECRECORDER_OIDC_CLIENT_SECRET:-}
+      # secrecorder's OIDC callback + launch URL — SecDeploy writes these into .env from the topology
+      # so the blueprint registers the redirect_uri for wherever secrecorder is actually fronted
+      # (else the blueprint's `!Env` falls back to the sec.internal default and login 400s).
+      SECRECORDER_REDIRECT_URI: ${SECRECORDER_REDIRECT_URI:-}
+      SECRECORDER_LAUNCH_URL: ${SECRECORDER_LAUNCH_URL:-}
     volumes:
       - ./blueprints:/blueprints/secsso:ro
       - media:/media

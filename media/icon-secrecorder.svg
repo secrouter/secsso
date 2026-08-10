@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 56 56" role="img" aria-label="SecRecorder">
+  <!-- User-portal app tile: suite hexagon with a microphone (SecRecorder / transcription). -->
+  <rect width="56" height="56" rx="12" fill="#54672f"/>
+  <polygon points="28,8 45,18 45,38 28,48 11,38 11,18" fill="none" stroke="#f3f1e5" stroke-width="3.2" stroke-linejoin="round"/>
+  <rect x="23.5" y="15.5" width="9" height="15" rx="4.5" fill="#cdd6a6"/>
+  <path d="M20.5 26 v1.5 a7.5 7.5 0 0 0 15 0 V26 M28 35 v5 M23 40 h10" fill="none" stroke="#dfe4c4" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

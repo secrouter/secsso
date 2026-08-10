@@ -50,13 +50,16 @@ equivalent OIDC app there (public client, PKCE, a `groups` claim). In SecDeploy 
 
 ## Wiring the rest of the suite
 
-`blueprints/secrouter-oidc.yaml`, `blueprints/secagent-*.yaml`, and
-`blueprints/secchatng.yaml` are applied automatically. `secchatng.yaml` wires the native
-**SecChat** rebuild (experimental — `secchatng`, opt in with
+`blueprints/secrouter-oidc.yaml`, `blueprints/secagent-*.yaml`,
+`blueprints/secchatng.yaml`, and `blueprints/secrecorder.yaml` are applied automatically.
+`secchatng.yaml` wires the native **SecChat** rebuild (experimental — `secchatng`, opt in with
 `secdeploy`'s `--with secchatng`): one confidential login client (`secchatng`) its backend uses
 to run the Authorization Code + PKCE dance itself, server-side (a BFF — the browser only ever
 gets an httpOnly session cookie, never a token), so there's no separate
-service account to provision.
+service account to provision. `secrecorder.yaml` does the same for **SecRecorder**'s optional
+browser-login BFF — one confidential login client (`secrecorder`, a brand-new client) for its
+transcription/summarization console; its SSO is off unless the operator sets SecRecorder's
+`SECRECORDER_OIDC_*` env (turnkey via `secdeploy`).
 
 To add SSO for a suite service that doesn't ship its own blueprint — the **SecCert** console
 or the **SecLLM** UI — copy `blueprints/suite-apps.yaml.example` → `suite-apps.yaml`
@@ -78,7 +81,7 @@ works unchanged in an air-gapped enclave:
 | `secsso-logo.svg` | login/consent card header (theme-adaptive — light or dark) |
 | `secsso-icon.svg` | browser favicon |
 | `secsso-background.svg` | full-bleed login background (hexagon lattice) |
-| `icon-secrouter.svg`, `icon-secagent.svg`, `icon-secchat.svg` | app tiles in the user portal |
+| `icon-secrouter.svg`, `icon-secagent.svg`, `icon-secchat.svg`, `icon-secrecorder.svg` | app tiles in the user portal |
 
 **Customize** by dropping your own files into `media/` (keep the names, or repoint the paths
 in `branding.yaml` / the app blueprints' `meta_icon`) and re-running `./bootstrap/secsso.sh up`.

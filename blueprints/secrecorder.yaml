@@ -1,0 +1,55 @@
+# SecSSO blueprint — SecRecorder (transcription) OIDC login client. Auto-discovered from
+# /blueprints/secsso and applied by Authentik on startup.
+#
+# ONE confidential client — SecRecorder's optional browser-login BFF runs the whole
+# Authorization Code + PKCE dance itself, server-side (the browser only ever gets an httpOnly
+# session cookie, never a token), so there's no separate service identity to provision here.
+# Users sign in here; SecRecorder discovers OIDC from this app's issuer, so it keeps the DEFAULT
+# per-provider issuer_mode (NOT global) — the discovery doc must live under ${issuer}. aud
+# defaults to "secrecorder", which is exactly what SecRecorder's SECRECORDER_OIDC_AUDIENCE
+# validates. Unlike SecChat (whose client id stays the retained "secchatng"), SecRecorder is a
+# brand-new client, so its id, slug, and display name are all plainly "secrecorder".
+version: 1
+metadata:
+  name: "SecSSO — SecRecorder OIDC login"
+  labels:
+    blueprints.goauthentik.io/description: "OIDC login client for the SecRecorder transcription BFF"
+context:
+  login_client_id: secrecorder
+entries:
+  # ── Login: confidential OIDC client for the SecRecorder BFF (server-side auth-code + PKCE) ──
+  - model: authentik_providers_oauth2.oauth2provider
+    id: provider-secrecorder
+    identifiers:
+      name: SecRecorder
+    attrs:
+      name: SecRecorder
+      client_type: confidential
+      client_id: !Context login_client_id
+      client_secret: !Env SECRECORDER_OIDC_CLIENT_SECRET
+      authorization_flow: !Find [authentik_flows.flow, [slug, default-provider-authorization-explicit-consent]]
+      invalidation_flow: !Find [authentik_flows.flow, [slug, default-provider-invalidation-flow]]
+      signing_key: !Find [authentik_crypto.certificatekeypair, [name, authentik Self-signed Certificate]]
+      sub_mode: hashed_user_id
+      include_claims_in_id_token: true
+      redirect_uris:
+        - matching_mode: strict
+          url: !Env [SECRECORDER_REDIRECT_URI, "https://secrecorder.sec.internal/auth/callback"]
+      property_mappings:
+        - !Find [authentik_providers_oauth2.scopemapping, [scope_name, openid]]
+        - !Find [authentik_providers_oauth2.scopemapping, [scope_name, profile]]
+        - !Find [authentik_providers_oauth2.scopemapping, [scope_name, email]]
+        - !Find [authentik_providers_oauth2.scopemapping, [scope_name, groups]]
+
+  - model: authentik_core.application
+    id: app-secrecorder
+    identifiers:
+      slug: secrecorder
+    attrs:
+      name: SecRecorder
+      slug: secrecorder
+      provider: !KeyOf provider-secrecorder
+      meta_launch_url: !Env [SECRECORDER_LAUNCH_URL, "https://secrecorder.sec.internal"]
+      meta_description: "Auditable transcription + summarization (native/MLX or faster-whisper)"
+      meta_publisher: "SecRouter suite"
+      meta_icon: "/media/secsso/icon-secrecorder.svg"
