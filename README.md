@@ -52,8 +52,9 @@ equivalent OIDC app there (public client, PKCE, a `groups` claim). In SecDeploy 
 
 `blueprints/secrouter-oidc.yaml`, `blueprints/secagent-*.yaml`,
 `blueprints/secchatng.yaml`, and `blueprints/secrecorder.yaml` are applied automatically.
-`secchatng.yaml` wires the native **SecChat** rebuild (experimental — `secchatng`, opt in with
-`secdeploy`'s `--with secchatng`): one confidential login client (`secchatng`) its backend uses
+`secchatng.yaml` wires the native **SecChat** — the canonical chat component SecDeploy ships by
+default (the blueprint + login-client id keep the `secchatng` slug from the rebuild; users only ever
+see "SecChat"): one confidential login client (`secchatng`) its backend uses
 to run the Authorization Code + PKCE dance itself, server-side (a BFF — the browser only ever
 gets an httpOnly session cookie, never a token), so there's no separate
 service account to provision. `secrecorder.yaml` does the same for **SecRecorder**'s optional
