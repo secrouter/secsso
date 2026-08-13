@@ -34,6 +34,12 @@ entries:
       redirect_uris:
         - matching_mode: strict
           url: !Env [SECCHATNG_REDIRECT_URI, "https://secchatng.sec.internal/auth/callback"]
+        # RP-initiated logout (OIDC end_session): Authentik validates `post_logout_redirect_uri`
+        # against this same redirect-URI list, so register the app origin SecChat's BFF sends the
+        # user back to after the IdP session is terminated (auth/bff.ts handleLogout). Without it
+        # Authentik ends the session but ignores the redirect (lands on its own logged-out page).
+        - matching_mode: strict
+          url: !Env [SECCHATNG_LAUNCH_URL, "https://secchatng.sec.internal"]
       property_mappings:
         - !Find [authentik_providers_oauth2.scopemapping, [scope_name, openid]]
         - !Find [authentik_providers_oauth2.scopemapping, [scope_name, profile]]
