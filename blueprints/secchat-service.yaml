@@ -113,7 +113,7 @@ entries:
       # Authentik 2024.12's default per_provider issuer_mode, a token minted here would carry
       # `iss: https://secsso.sec.internal/application/o/secchat-service/`, which is not
       # `https://secsso.sec.internal/` (the fixed value every verifier config in this suite is
-      # pinned to — see out/addressing/secrouter-oidc.json, freerouter.config.json,
+      # pinned to — see out/addressing/secrouter-oidc.json, secrouter.config.json,
       # work/secrouter/src/security/types.ts's OidcConfig). global makes the issuer the bare
       # root regardless of which provider/application signed the token, which is what every
       # verifier here actually expects. NOT the same axis as sub_mode above (issuer vs. subject).
