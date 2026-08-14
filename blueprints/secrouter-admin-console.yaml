@@ -1,0 +1,74 @@
+# SecSSO blueprint — OIDC PKCE public client for a HUMAN logging into SecRouter's admin
+# console. Auto-discovered from /blueprints/secsso and applied by Authentik on startup.
+#
+# Distinct from secrouter-oidc.yaml's "SecRouter" provider (client_id "secrouter"), which is the
+# gateway's own audience/verifier identity — every service token bound for SecRouter carries
+# `aud: ["secrouter"]` (see secagent-audience.yaml's shared scope mapping) regardless of which
+# client requested it. This is a SEPARATE client_id, "secrouter-admin-console", purely for the
+# interactive PKCE login the console's own frontend performs; it is never used to fetch a
+# service/access token for the gateway's data plane. Same shape as secrouter-oidc.yaml's existing
+# PKCE client — public, no secret, redirect + PKCE only, groups scope included so SecRouter can
+# enforce per-group console policy (e.g. gate write actions on `secrouter-admins` membership)
+# straight from the ID token.
+#
+# Reuses secrouter-oidc.yaml's "SecSSO groups scope" mapping (scope_name: groups) via !Find
+# rather than redeclaring it — same self-healing !Find semantics as every other cross-file
+# reference in this directory (secagent-audience.yaml's header explains why a transient miss on
+# first boot is fine).
+version: 1
+metadata:
+  name: "SecSSO — SecRouter admin console OIDC login"
+  labels:
+    blueprints.goauthentik.io/description: "OIDC PKCE public client for human sign-in to the SecRouter admin console"
+context:
+  admin_console_client_id: secrouter-admin-console
+entries:
+  - model: authentik_providers_oauth2.oauth2provider
+    id: provider-secrouter-admin-console
+    identifiers:
+      name: SecRouter Admin Console
+    attrs:
+      name: SecRouter Admin Console
+      # Public client — the admin console signs in with OIDC + PKCE (no client secret in the
+      # browser), exactly like secrouter-oidc.yaml's own PKCE client.
+      client_type: public
+      client_id: !Context admin_console_client_id
+      authorization_flow: !Find [authentik_flows.flow, [slug, default-provider-authorization-explicit-consent]]
+      invalidation_flow: !Find [authentik_flows.flow, [slug, default-provider-invalidation-flow]]
+      signing_key: !Find [authentik_crypto.certificatekeypair, [name, authentik Self-signed Certificate]]
+      # REQUIRED: with Authentik 2024.12's default per_provider issuer_mode this provider's
+      # tokens carry iss=https://secsso.sec.internal/application/o/secrouter-admin-console/,
+      # which fails SecRouter's exact-match `iss` check (jose jwtVerify) against the suite-wide
+      # https://secsso.sec.internal/ every verifier config expects — see secchat-service.yaml's
+      # identical note for the full explanation. Also required for admin-ui.ts's login() to find
+      # discovery at the root issuer — see the secproxy nginx well-known rewrite this depends on.
+      issuer_mode: global
+      sub_mode: hashed_user_id
+      include_claims_in_id_token: true
+      redirect_uris:
+        - matching_mode: strict
+          url: !Env [SECROUTER_ADMIN_CONSOLE_REDIRECT_URI, "https://secrouter.sec.internal/admin"]
+      property_mappings:
+        - !Find [authentik_providers_oauth2.scopemapping, [scope_name, openid]]
+        - !Find [authentik_providers_oauth2.scopemapping, [scope_name, profile]]
+        - !Find [authentik_providers_oauth2.scopemapping, [scope_name, email]]
+        - !Find [authentik_providers_oauth2.scopemapping, [scope_name, groups]]
+        # The shared `secrouter` audience scope (see secrouter-oidc.yaml/secagent-audience.yaml)
+        # — without it the console's access token carries aud=secrouter-admin-console instead of
+        # aud=secrouter, and SecRouter's verifier (security.oidc.audience="secrouter") rejects
+        # every /admin/api/* call outright. See freerouter.config.json's security.oidc.scopes,
+        # which must also request "secrouter" for the frontend to actually ask for this scope.
+        - !Find [authentik_providers_oauth2.scopemapping, [scope_name, secrouter]]
+
+  - model: authentik_core.application
+    id: app-secrouter-admin-console
+    identifiers:
+      slug: secrouter-admin-console
+    attrs:
+      name: SecRouter Admin Console
+      slug: secrouter-admin-console
+      provider: !KeyOf provider-secrouter-admin-console
+      meta_launch_url: !Env [SECROUTER_ADMIN_CONSOLE_LAUNCH_URL, "https://secrouter.sec.internal/admin"]
+      meta_description: "Governed AI gateway — admin console human sign-in (OIDC + PKCE)"
+      meta_publisher: "SecRouter suite"
+      meta_icon: "/media/secsso/icon-secrouter.svg"
