@@ -1,0 +1,140 @@
+# SecSSO blueprint — OAuth2 client_credentials (RFC 6749 §4.4) provider + application for
+# SecChat's shared service identity: ONE identity for all of SecChat's SecRouter traffic (the
+# assistant/chat path AND pi, which reuses SecChat's own token — see secchat's
+# src/secrouter/token.ts's makeServiceTokenProvider). Mirrors secagent-service.yaml's shape.
+#
+# client_id MUST be "secchat-service" (SecChat's SECCHAT_SECROUTER_CLIENT_ID). client_secret on
+# the PROVIDER record is read from SECCHAT_SERVICE_PROVIDER_SECRET (blank-key convention, see
+# .env.example) — but unlike secagent-service.yaml, this value is NOT what SecChat actually
+# sends. See "Getting an exact sub" below: it exists only to satisfy the confidential-provider
+# schema and to make sure SecChat's real client_secret is never mistaken for it.
+#
+# ── Getting an exact sub="svc-secchat" (verified against Authentik 2024.12's own source,
+#    providers/oauth2/views/token.py + core/api/users.py — not just its docs) ──
+#
+# secagent-service.yaml assumes its client_credentials sub already reads "svc-secagent" (see its
+# own comments and secagent's docs/configuration.md). That is NOT what live Authentik does: with
+# NO `sub_mode` override (the model default is `hashed_user_id`) AND a plain client_secret grant
+# (client_secret == provider.client_secret, TokenView.__post_init_client_credentials_generated),
+# Authentik auto-vivifies a SERVICE_ACCOUNT user named
+# `f"ak-{provider.name}-client_credentials"` and — since sub_mode is unset — emits a HASHED user
+# id as `sub`, not that username. Confirmed live: `ak shell` against the running secsso-server-1
+# shows the deployed `secagent-service` provider's `sub_mode` is still the `hashed_user_id`
+# default. So today `sub` for secagent's own service tokens is a hash, not "svc-secagent" — this
+# repo's `serviceSubjects: ["svc-secagent"]` (secdeploy's wiring.py/secrouter_oidc_config) is
+# aspirational, not what's actually issued. Do NOT copy that gap here.
+#
+# Setting `sub_mode: user_username` alone does not fix it either: Authentik's auto-vivified
+# username ALWAYS carries that `ak-...-client_credentials` template (hardcoded in token.py, no
+# blueprint field controls it), so it can never read exactly "svc-secchat".
+#
+# The only path that lets `sub` be an operator-chosen literal is Authentik's OTHER
+# client_credentials mode — "authentik-custom-ish" in its own source comment — used when the
+# grant's `client_secret` does NOT equal the provider's stored one: Authentik then tries to
+# base64-decode the presented `client_secret` as `"username:password"`, looks up an EXISTING
+# `authentik_core.user` by that username, and checks `password` against that user's `app_password`
+# Token (`__post_init_client_credentials_creds`). This is exactly Authentik's own "Create Service
+# Account" mechanism (core/api/users.py's `service_account` action) — a SERVICE_ACCOUNT user plus
+# an app_password Token — just declared here instead of clicked through the admin UI, so this
+# file provisions BOTH:
+#   - authentik_core.user "svc-secchat" (type: service_account)
+#   - authentik_core.token, intent app_password, key = SECCHAT_SVC_APP_PASSWORD (blank-key
+#     convention), bound to that user, non-expiring (a persistent machine credential)
+# With `sub_mode: user_username` on the provider, a grant authenticated this way emits
+# sub = "svc-secchat" exactly.
+#
+# What SecChat must actually send: this fits SecChat's EXISTING, already-generic
+# ServiceTokenConfig (client_id/client_secret/scope — see token.ts; no separate username
+# field) without any code change there, IF its `SECCHAT_SECROUTER_CLIENT_SECRET` is set to
+#     base64("svc-secchat:" + <SECCHAT_SVC_APP_PASSWORD's value>)
+# rather than an independently-generated secret. That composite value crosses from SecSSO's env
+# into SecChat's env, so — same shape as secdeploy's existing
+# sync_secagent_service_secret()/SECAGENT_SERVICE_CLIENT_SECRET mirroring in
+# src/secdeploy/wiring.py — the SecChat-auth wiring step (NOT this blueprint) must read
+# SECCHAT_SVC_APP_PASSWORD back from secsso's .env, base64-encode "svc-secchat:<value>", and
+# write THAT into SecChat's SECCHAT_SECROUTER_CLIENT_SECRET. See this repo's handoff notes for
+# the exact computation. Until that sync exists, SECCHAT_SERVICE_PROVIDER_SECRET (the provider's
+# own client_secret) is unused dead weight required only by the blueprint schema — never send it
+# as-is, it authenticates nothing.
+version: 1
+metadata:
+  name: "SecSSO — SecChat (client_credentials, service identity)"
+  labels:
+    blueprints.goauthentik.io/description: "OAuth2 client_credentials provider for SecChat's shared service token (assistant + pi)"
+context:
+  service_client_id: secchat-service
+  svc_username: svc-secchat
+
+entries:
+  # ── The pre-provisioned service-account identity itself — see header. Mirrors Authentik's own
+  # "Create Service Account" (core/api/users.py) shape: a SERVICE_ACCOUNT-type user plus an
+  # app_password Token, just declared instead of clicked through. `state: present` (not
+  # `created`) so this reconciles every apply, like the groups in users.generated.yaml. ──
+  - model: authentik_core.user
+    id: user-svc-secchat
+    state: present
+    identifiers:
+      username: !Context svc_username
+    attrs:
+      type: service_account
+      name: "SecChat service account (svc-secchat)"
+
+  - model: authentik_core.token
+    id: token-svc-secchat-app-password
+    state: present
+    identifiers:
+      identifier: "service-account-svc-secchat-password"
+    attrs:
+      user: !KeyOf user-svc-secchat
+      intent: app_password
+      key: !Env SECCHAT_SVC_APP_PASSWORD
+      expiring: false
+      description: "SecChat's client_credentials app-password — see secchat-service.yaml header"
+
+  - model: authentik_providers_oauth2.oauth2provider
+    id: provider-secchat-service
+    identifiers:
+      name: secchat-service
+    attrs:
+      name: secchat-service
+      client_type: confidential
+      client_id: !Context service_client_id
+      client_secret: !Env SECCHAT_SERVICE_PROVIDER_SECRET
+      grant_types:
+        - client_credentials
+      # Required by this Authentik version's blueprint serializer even though none is ever used
+      # for a pure client_credentials grant — see secagent-service.yaml's identical note.
+      authorization_flow: !Find [authentik_flows.flow, [slug, default-provider-authorization-explicit-consent]]
+      invalidation_flow: !Find [authentik_flows.flow, [slug, default-provider-invalidation-flow]]
+      redirect_uris: []
+      signing_key: !Find [authentik_crypto.certificatekeypair, [name, authentik Self-signed Certificate]]
+      # REQUIRED: SecRouter's OidcProvider (secrouter/src/security/identity/oidc.ts) verifies
+      # `iss` with jose's jwtVerify, which matches EXACTLY — no prefix/suffix tolerance. With
+      # Authentik 2024.12's default per_provider issuer_mode, a token minted here would carry
+      # `iss: https://secsso.sec.internal/application/o/secchat-service/`, which is not
+      # `https://secsso.sec.internal/` (the fixed value every verifier config in this suite is
+      # pinned to — see out/addressing/secrouter-oidc.json, freerouter.config.json,
+      # work/secrouter/src/security/types.ts's OidcConfig). global makes the issuer the bare
+      # root regardless of which provider/application signed the token, which is what every
+      # verifier here actually expects. NOT the same axis as sub_mode above (issuer vs. subject).
+      issuer_mode: global
+      # Deliberately NOT the model default (hashed_user_id) — see header. Only matters when the
+      # grant resolves to the pre-provisioned svc-secchat user via the creds path; make sure it's
+      # not silently a hash regardless of how the grant authenticates.
+      sub_mode: user_username
+      include_claims_in_id_token: true
+      property_mappings:
+        - !Find [authentik_providers_oauth2.scopemapping, [scope_name, openid]]
+        - !Find [authentik_providers_oauth2.scopemapping, [scope_name, secrouter]]
+
+  - model: authentik_core.application
+    id: app-secchat-service
+    identifiers:
+      slug: secchat-service
+    attrs:
+      name: secchat-service
+      slug: secchat-service
+      provider: !KeyOf provider-secchat-service
+      meta_description: "SecChat's shared service identity (assistant + pi client_credentials calls)"
+      meta_publisher: "SecRouter suite"
+      meta_icon: "/media/secsso/icon-secchat.svg"

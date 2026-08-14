@@ -24,6 +24,11 @@ entries:
     attrs:
       name: secagent-pi
       client_type: public
+      # Emit the ROOT issuer (https://secsso.sec.internal/) so per-user device-flow tokens pass
+      # SecRouter's exact-issuer check (security.oidc.issuer). Authentik 2024.12 defaults to
+      # per_provider, which SecRouter's jose jwtVerify rejects — same requirement as the
+      # secchat-service / secrouter-admin-console / secagent-service providers.
+      issuer_mode: global
       client_id: !Context pi_client_id
       authorization_flow: !Find [authentik_flows.flow, [slug, default-provider-authorization-explicit-consent]]
       invalidation_flow: !Find [authentik_flows.flow, [slug, default-provider-invalidation-flow]]

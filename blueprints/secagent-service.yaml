@@ -43,6 +43,12 @@ entries:
       invalidation_flow: !Find [authentik_flows.flow, [slug, default-provider-invalidation-flow]]
       redirect_uris: []
       signing_key: !Find [authentik_crypto.certificatekeypair, [name, authentik Self-signed Certificate]]
+      # REQUIRED: with Authentik 2024.12's default per_provider issuer_mode this provider's
+      # tokens carry iss=https://secsso.sec.internal/application/o/secagent-service/, which
+      # fails SecRouter's exact-match `iss` check (jose jwtVerify) against the suite-wide
+      # https://secsso.sec.internal/ every verifier config expects — see secchat-service.yaml's
+      # identical note for the full explanation.
+      issuer_mode: global
       include_claims_in_id_token: true
       property_mappings:
         - !Find [authentik_providers_oauth2.scopemapping, [scope_name, openid]]

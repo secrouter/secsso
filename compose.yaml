@@ -58,6 +58,19 @@ services:
       # keys a service's `environment:` block explicitly lists, so this must be here even
       # though the value itself lives in .env (see SECAGENT_SERVICE_CLIENT_SECRET there).
       SECAGENT_SERVICE_CLIENT_SECRET: ${SECAGENT_SERVICE_CLIENT_SECRET:-}
+      # SecChat's shared service identity (blueprints/secchat-service.yaml's `!Env`s) — the
+      # provider's own client_secret (unused dead weight, see that file's header) and the
+      # svc-secchat service-account app-password (the value that actually authenticates
+      # SecChat's client_credentials grant, see secchat-service.yaml's "Getting an exact sub").
+      # Same "compose only passes through what environment: explicitly lists" requirement as
+      # SECAGENT_SERVICE_CLIENT_SECRET above — blank here means the blueprint apply either fails
+      # (app-password key required) or misprovisions (empty provider secret).
+      SECCHAT_SERVICE_PROVIDER_SECRET: ${SECCHAT_SERVICE_PROVIDER_SECRET:-}
+      SECCHAT_SVC_APP_PASSWORD: ${SECCHAT_SVC_APP_PASSWORD:-}
+      # SecRouter admin console's OIDC callback + launch URL — blueprints/secrouter-admin-console.yaml's
+      # `!Env`s, same topology-derived-redirect pattern as SECCHATNG_REDIRECT_URI/LAUNCH_URL below.
+      SECROUTER_ADMIN_CONSOLE_REDIRECT_URI: ${SECROUTER_ADMIN_CONSOLE_REDIRECT_URI:-}
+      SECROUTER_ADMIN_CONSOLE_LAUNCH_URL: ${SECROUTER_ADMIN_CONSOLE_LAUNCH_URL:-}
       # SecChat (native, experimental) — read by blueprints/secchatng.yaml's `!Env`.
       SECCHATNG_OIDC_CLIENT_SECRET: ${SECCHATNG_OIDC_CLIENT_SECRET:-}
       # secchatng's OIDC callback + launch URL — SecDeploy writes these into .env from the topology
@@ -117,6 +130,19 @@ services:
       # keys a service's `environment:` block explicitly lists, so this must be here even
       # though the value itself lives in .env (see SECAGENT_SERVICE_CLIENT_SECRET there).
       SECAGENT_SERVICE_CLIENT_SECRET: ${SECAGENT_SERVICE_CLIENT_SECRET:-}
+      # SecChat's shared service identity (blueprints/secchat-service.yaml's `!Env`s) — the
+      # provider's own client_secret (unused dead weight, see that file's header) and the
+      # svc-secchat service-account app-password (the value that actually authenticates
+      # SecChat's client_credentials grant, see secchat-service.yaml's "Getting an exact sub").
+      # Same "compose only passes through what environment: explicitly lists" requirement as
+      # SECAGENT_SERVICE_CLIENT_SECRET above — blank here means the blueprint apply either fails
+      # (app-password key required) or misprovisions (empty provider secret).
+      SECCHAT_SERVICE_PROVIDER_SECRET: ${SECCHAT_SERVICE_PROVIDER_SECRET:-}
+      SECCHAT_SVC_APP_PASSWORD: ${SECCHAT_SVC_APP_PASSWORD:-}
+      # SecRouter admin console's OIDC callback + launch URL — blueprints/secrouter-admin-console.yaml's
+      # `!Env`s, same topology-derived-redirect pattern as SECCHATNG_REDIRECT_URI/LAUNCH_URL below.
+      SECROUTER_ADMIN_CONSOLE_REDIRECT_URI: ${SECROUTER_ADMIN_CONSOLE_REDIRECT_URI:-}
+      SECROUTER_ADMIN_CONSOLE_LAUNCH_URL: ${SECROUTER_ADMIN_CONSOLE_LAUNCH_URL:-}
       # SecChat (native, experimental) — read by blueprints/secchatng.yaml's `!Env`.
       SECCHATNG_OIDC_CLIENT_SECRET: ${SECCHATNG_OIDC_CLIENT_SECRET:-}
       # secchatng's OIDC callback + launch URL — SecDeploy writes these into .env from the topology
