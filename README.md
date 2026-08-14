@@ -38,7 +38,7 @@ SecRouter OIDC — point SecRouter's security.oidc at this:
   "oidc": { "issuer": "…/application/o/secrouter/", "audience": "secrouter", "requireMfa": true }
 ```
 
-Paste that into SecRouter's `freerouter.config.json`, log in to the Authentik admin
+Paste that into SecRouter's `secrouter.config.json`, log in to the Authentik admin
 (`akadmin`) to create users/groups, and SecRouter's admin console signs in via SecSSO.
 
 ## Already have an IdP? Drop SecSSO.

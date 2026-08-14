@@ -56,7 +56,7 @@ entries:
         # The shared `secrouter` audience scope (see secrouter-oidc.yaml/secagent-audience.yaml)
         # — without it the console's access token carries aud=secrouter-admin-console instead of
         # aud=secrouter, and SecRouter's verifier (security.oidc.audience="secrouter") rejects
-        # every /admin/api/* call outright. See freerouter.config.json's security.oidc.scopes,
+        # every /admin/api/* call outright. See secrouter.config.json's security.oidc.scopes,
         # which must also request "secrouter" for the frontend to actually ask for this scope.
         - !Find [authentik_providers_oauth2.scopemapping, [scope_name, secrouter]]
 

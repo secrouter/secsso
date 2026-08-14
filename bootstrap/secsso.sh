@@ -26,7 +26,7 @@ oidc_config() {
   echo "  discovery: ${iss}.well-known/openid-configuration"
   echo "  audience:  ${cid}    (client_id; PKCE public client)"
   echo ""
-  echo '  freerouter.config.json →'
+  echo '  secrouter.config.json →'
   echo "    \"oidc\": { \"issuer\": \"${iss}\", \"audience\": \"${cid}\", \"requireMfa\": true }"
 }
 
