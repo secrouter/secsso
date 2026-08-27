@@ -7,6 +7,18 @@
 # Result: SecRouter's admin console signs in via OIDC PKCE against SecSSO. The
 # client_id matches SecRouter's `security.oidc.audience` ("secrouter"), and a groups
 # scope is included so SecRouter can enforce per-group policy from the token.
+#
+# This provider plays a double role in the suite:
+#   1. The AUDIENCE / JWKS ANCHOR — its client_id is the `aud` every SecRouter-bound token
+#      must carry (secagent-audience.yaml's shared scope grants it to other clients), and its
+#      slug hosts the canonical jwksUri (/application/o/secrouter/jwks/) every verifier config
+#      points at. The root well-known rewrite (secdeploy's generated secproxy nginx conf)
+#      serves THIS provider's discovery doc at the bare-root issuer, so it MUST stay
+#      issuer_mode: global (below) for that doc's `issuer` to read the root.
+#   2. A PKCE login client for a standalone (non-suite) SecRouter console — SECROUTER_REDIRECT_URI's
+#      default matches SecRouter's dev port 18800. The suite console uses the separate
+#      secrouter-admin-console client instead (see that file), but tokens minted here verify
+#      identically now that the issuer is global.
 version: 1
 metadata:
   name: "SecSSO — SecRouter OIDC"
@@ -41,6 +53,14 @@ entries:
       authorization_flow: !Find [authentik_flows.flow, [slug, default-provider-authorization-explicit-consent]]
       invalidation_flow: !Find [authentik_flows.flow, [slug, default-provider-invalidation-flow]]
       signing_key: !Find [authentik_crypto.certificatekeypair, [name, authentik Self-signed Certificate]]
+      # REQUIRED — this was the one aud=secrouter minter still on the per_provider default,
+      # so tokens minted through its own PKCE login carried iss=<root>/application/o/secrouter/
+      # and failed SecRouter's exact-match `iss` check (claim_invalid) even with a valid
+      # signature and audience; every other SecRouter-bound provider already sets global (see
+      # secchat-service.yaml's note). Also load-bearing for the root well-known rewrite, which
+      # serves this provider's discovery doc as the root issuer's — per_provider would make
+      # that doc advertise the slug-path issuer and break strict discovery clients.
+      issuer_mode: global
       sub_mode: hashed_user_id
       include_claims_in_id_token: true
       redirect_uris:
