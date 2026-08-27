@@ -2,6 +2,30 @@
 
 ## [Unreleased]
 
+### Changed
+- **Exact-`sub` service identities for secagent and SecChat.** `secagent-service.yaml` and
+  `secchat-service.yaml` now authenticate their `client_credentials` grants with an
+  app-password Token key bound to a pre-provisioned `svc-secagent` / `svc-secchat`
+  service-account user, so the issued `sub` is exactly `svc-secagent` / `svc-secchat` —
+  matching SecRouter's `serviceSubjects`/`delegatingSubjects` config. Replaces
+  `SECAGENT_SERVICE_CLIENT_SECRET` with `SECAGENT_SVC_APP_PASSWORD`, and drops
+  `SECCHAT_SERVICE_PROVIDER_SECRET` (schema-required but unused dead weight) in favor of the
+  same `SECCHAT_SVC_APP_PASSWORD` mechanism SecChat already had. The composite each service
+  must present as its own client secret is `base64("svc-<name>:" + <key>)`;
+  `bootstrap/secsso.sh secagent-config` prints it for a manual hand-off.
+- **`bootstrap/secsso.sh oidc-config`** now emits the global-issuer form (bare root `iss` +
+  explicit `jwksUri`, plus `serviceSubjects`/`delegatingSubjects`) matching secdeploy's
+  `wiring.secrouter_oidc_config`, instead of the old per-provider issuer shape.
+- **`SECROUTER_REDIRECT_URI` is now actually forwarded** into the `server`/`worker`
+  `environment:` blocks in `compose.yaml`. Previously Compose never passed the key through,
+  so `secrouter-oidc.yaml`'s `!Env` always fell back to the hardcoded `localhost` default
+  regardless of what `.env` said.
+- **Suite docs set.** Added `docs/configuration.md` (every `.env` variable, one row each:
+  default, required?, consuming blueprint, meaning), `docs/control-validation.md` (NIST
+  SP 800-171 control mapping for the identity layer), and `docs/index.md`; README now links
+  the suite repos and the new docs pages; `blueprints/suite-apps.yaml.example` updated to
+  reflect the components that now ship their own blueprints.
+
 ### Fixed
 - **Forced password reset actually resets the password.** The `reset_password`-gated stage
   bindings on `default-authentication-flow` (`blueprints/force-password-reset.yaml`) previously
@@ -57,6 +81,9 @@
   icon deleted, `SECASSIST_*` stripped from `.env.example` and `compose.yaml`. The native
   SecChat OIDC client (`blueprints/secchatng.yaml`) is the suite's canonical, retained chat
   login client and was unaffected by the cutover.
+- **`SECAGENT_PI_REDIRECT_URI`** — dead config. `secagent-pi.yaml`'s client is device-code
+  (RFC 8628, `redirect_uris: []`) and secagent's `SecSSOConfig` has no browser/loopback-PKCE
+  login path that would ever read it.
 
 ## [1.0.0]
 
