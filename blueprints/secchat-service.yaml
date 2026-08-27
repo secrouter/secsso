@@ -3,30 +3,16 @@
 # assistant/chat path AND pi, which reuses SecChat's own token — see secchat's
 # src/secrouter/token.ts's makeServiceTokenProvider). Mirrors secagent-service.yaml's shape.
 #
-# client_id MUST be "secchat-service" (SecChat's SECCHAT_SECROUTER_CLIENT_ID). client_secret on
-# the PROVIDER record is read from SECCHAT_SERVICE_PROVIDER_SECRET (blank-key convention, see
-# .env.example) — but unlike secagent-service.yaml, this value is NOT what SecChat actually
-# sends. See "Getting an exact sub" below: it exists only to satisfy the confidential-provider
-# schema and to make sure SecChat's real client_secret is never mistaken for it.
+# client_id MUST be "secchat-service" (SecChat's SECCHAT_SECROUTER_CLIENT_ID).
 #
 # ── Getting an exact sub="svc-secchat" (verified against Authentik 2024.12's own source,
 #    providers/oauth2/views/token.py + core/api/users.py — not just its docs) ──
 #
-# secagent-service.yaml assumes its client_credentials sub already reads "svc-secagent" (see its
-# own comments and secagent's docs/configuration.md). That is NOT what live Authentik does: with
-# NO `sub_mode` override (the model default is `hashed_user_id`) AND a plain client_secret grant
-# (client_secret == provider.client_secret, TokenView.__post_init_client_credentials_generated),
-# Authentik auto-vivifies a SERVICE_ACCOUNT user named
-# `f"ak-{provider.name}-client_credentials"` and — since sub_mode is unset — emits a HASHED user
-# id as `sub`, not that username. Confirmed live: `ak shell` against the running secsso-server-1
-# shows the deployed `secagent-service` provider's `sub_mode` is still the `hashed_user_id`
-# default. So today `sub` for secagent's own service tokens is a hash, not "svc-secagent" — this
-# repo's `serviceSubjects: ["svc-secagent"]` (secdeploy's wiring.py/secrouter_oidc_config) is
-# aspirational, not what's actually issued. Do NOT copy that gap here.
-#
-# Setting `sub_mode: user_username` alone does not fix it either: Authentik's auto-vivified
-# username ALWAYS carries that `ak-...-client_credentials` template (hardcoded in token.py, no
-# blueprint field controls it), so it can never read exactly "svc-secchat".
+# A plain client_secret grant (presented client_secret == provider.client_secret,
+# TokenView.__post_init_client_credentials_generated) auto-vivifies a SERVICE_ACCOUNT user named
+# `f"ak-{provider.name}-client_credentials"` — and that hardcoded username template means no
+# sub_mode setting can ever make such a grant's sub read exactly "svc-secchat" (the default
+# `hashed_user_id` emits a hash; `user_username` emits the ak-... template name).
 #
 # The only path that lets `sub` be an operator-chosen literal is Authentik's OTHER
 # client_credentials mode — "authentik-custom-ish" in its own source comment — used when the
@@ -41,21 +27,23 @@
 #   - authentik_core.token, intent app_password, key = SECCHAT_SVC_APP_PASSWORD (blank-key
 #     convention), bound to that user, non-expiring (a persistent machine credential)
 # With `sub_mode: user_username` on the provider, a grant authenticated this way emits
-# sub = "svc-secchat" exactly.
+# sub = "svc-secchat" exactly. secagent-service.yaml now uses the same mechanism for
+# "svc-secagent" — the two subs are what secrouter's security.oidc.serviceSubjects /
+# delegatingSubjects name (secdeploy's wiring.secrouter_oidc_config emits both).
 #
-# What SecChat must actually send: this fits SecChat's EXISTING, already-generic
+# What SecChat actually sends: this fits SecChat's EXISTING, already-generic
 # ServiceTokenConfig (client_id/client_secret/scope — see token.ts; no separate username
-# field) without any code change there, IF its `SECCHAT_SECROUTER_CLIENT_SECRET` is set to
+# field) without any code change there — its `SECCHAT_SECROUTER_CLIENT_SECRET` is set to
 #     base64("svc-secchat:" + <SECCHAT_SVC_APP_PASSWORD's value>)
 # rather than an independently-generated secret. That composite value crosses from SecSSO's env
-# into SecChat's env, so — same shape as secdeploy's existing
-# sync_secagent_service_secret()/SECAGENT_SERVICE_CLIENT_SECRET mirroring in
-# src/secdeploy/wiring.py — the SecChat-auth wiring step (NOT this blueprint) must read
-# SECCHAT_SVC_APP_PASSWORD back from secsso's .env, base64-encode "svc-secchat:<value>", and
-# write THAT into SecChat's SECCHAT_SECROUTER_CLIENT_SECRET. See this repo's handoff notes for
-# the exact computation. Until that sync exists, SECCHAT_SERVICE_PROVIDER_SECRET (the provider's
-# own client_secret) is unused dead weight required only by the blueprint schema — never send it
-# as-is, it authenticates nothing.
+# into SecChat's env via secdeploy's wiring.sync_secchat_env, which reads
+# SECCHAT_SVC_APP_PASSWORD back from this stack's .env, base64-encodes "svc-secchat:<value>",
+# and writes THAT (plus SECCHAT_SECROUTER_TOKEN_URL/_CLIENT_ID) into SecChat's .env.
+#
+# No `client_secret` attr on the provider below: Authentik generates a random one (model
+# default) that nothing ever presents — which is precisely what routes every real grant onto
+# the creds path above. (An operator-visible provider secret used to live here as
+# SECCHAT_SERVICE_PROVIDER_SECRET; it authenticated nothing and is gone.)
 version: 1
 metadata:
   name: "SecSSO — SecChat (client_credentials, service identity)"
@@ -99,7 +87,6 @@ entries:
       name: secchat-service
       client_type: confidential
       client_id: !Context service_client_id
-      client_secret: !Env SECCHAT_SERVICE_PROVIDER_SECRET
       grant_types:
         - client_credentials
       # Required by this Authentik version's blueprint serializer even though none is ever used

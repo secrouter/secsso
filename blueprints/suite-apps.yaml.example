@@ -1,12 +1,12 @@
 # TEMPLATE — copy to `suite-apps.yaml` (which IS auto-applied) once the target
 # components exist, and fill in the redirect URIs. Mirrors secrouter-oidc.yaml.
 #
-# The suite services that speak OIDC and ship their OWN auto-applied blueprint —
-# SecRouter (secrouter-oidc.yaml), SecChat (secchatng.yaml), SecAgent (secagent-*.yaml) —
-# need NO entry here. Use this template only for services that don't yet have a blueprint,
-# e.g.:
-#   - SecCert console       — if you front its admin with OIDC
-#   - SecLLM management UI   — OIDC login for the model console
+# The suite services that speak OIDC and ship their OWN auto-applied blueprint — SecRouter
+# (secrouter-oidc.yaml, secrouter-admin-console.yaml), SecChat (secchatng.yaml,
+# secchat-service.yaml), SecAgent (secagent-*.yaml), SecRecorder (secrecorder.yaml), and
+# SecLLM (secllm.yaml) — need NO entry here. Use this template only for a service that
+# doesn't yet have a blueprint, e.g.:
+#   - SecCert console — if you front its admin with OIDC
 #
 # The single entry below is a generic worked example — rename it and set your client_id,
 # redirect URI, launch URL, and icon; add one provider + application pair per app.
