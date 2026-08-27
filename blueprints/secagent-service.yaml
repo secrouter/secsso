@@ -1,4 +1,4 @@
-# SecSSO blueprint — OAuth2 client_credentials (RFC 6749 SS4.4) provider + application for
+# SecSSO blueprint — OAuth2 client_credentials (RFC 6749 §4.4) provider + application for
 # secagent's shared service identity (`secagent token`, headless calls — see secagent's
 # docs/configuration.md and src/secagent/config.py's SecSSOConfig; this file's shape is
 # referenced there by name).
@@ -7,14 +7,31 @@
 # against authentik's own source (providers/oauth2/views/token.py): it requires `grant_types` to
 # explicitly list `client_credentials`, AND an `authentik_core.application` bound to the
 # provider (token.py raises invalid_grant with no Application row, even though no launch URL/
-# consent screen is ever shown for this grant — Authentik auto-creates a SERVICE_ACCOUNT-type
-# user scoped to that Application to represent the caller).
+# consent screen is ever shown for this grant).
 #
-# client_id MUST be "secagent" — secagent's SecSSOConfig.client_id default. client_secret is
-# read from the container's own SECAGENT_SERVICE_CLIENT_SECRET env var (see compose.yaml +
-# .env.example) rather than hardcoded here — secdeploy auto-generates it (blank-key convention,
-# same as AUTHENTIK_SECRET_KEY/PG_PASS) and mirrors the SAME value into secagent's own
-# SECAGENT_CLIENT_SECRET, so the two independently-generated-looking values are actually one.
+# ── How the issued `sub` becomes exactly "svc-secagent" (same mechanism as
+#    secchat-service.yaml — see its header for the full Authentik-source walkthrough) ──
+#
+# A plain client_secret grant (presented secret == the provider's stored one) auto-vivifies a
+# service account named `ak-secagent-service-client_credentials` and, under the default
+# `sub_mode: hashed_user_id`, emits a HASH as `sub` — never "svc-secagent", no matter what
+# sub_mode says (the auto-vivified username template is hardcoded). So this file instead uses
+# Authentik's OTHER client_credentials mode (token.py's __post_init_client_credentials_creds):
+# the presented client_secret is base64("<username>:<app-password>") for a pre-provisioned
+# SERVICE_ACCOUNT user, and with `sub_mode: user_username` the issued sub is that username,
+# exactly. This file provisions BOTH halves:
+#   - authentik_core.user "svc-secagent" (type: service_account)
+#   - authentik_core.token, intent app_password, key = SECAGENT_SVC_APP_PASSWORD (blank-key
+#     convention, see .env.example), bound to that user, non-expiring
+#
+# client_id MUST be "secagent" — secagent's SecSSOConfig.client_id default. What secagent must
+# actually present as its client_secret (SECAGENT_CLIENT_SECRET) is
+#     base64("svc-secagent:" + <SECAGENT_SVC_APP_PASSWORD's value>)
+# — secdeploy's wiring.sync_secagent_service_secret computes and mirrors exactly that composite
+# from this stack's .env into secagent's env (and `./bootstrap/secsso.sh secagent-config` prints
+# it for a manual hand-off). No `client_secret` attr on the provider below: Authentik generates
+# a random one (model default) that nothing ever presents, which is precisely what routes the
+# grant onto the creds path above instead of the auto-vivified plain path.
 version: 1
 metadata:
   name: "SecSSO — secagent (client_credentials, service identity)"
@@ -22,7 +39,32 @@ metadata:
     blueprints.goauthentik.io/description: "OAuth2 client_credentials provider for secagent's shared service token"
 context:
   service_client_id: secagent
+  svc_username: svc-secagent
 entries:
+  # ── The pre-provisioned service-account identity — mirrors Authentik's own "Create Service
+  # Account" (core/api/users.py) shape, declared instead of clicked through. `state: present`
+  # so this reconciles every apply, like the groups in users.generated.yaml. ──
+  - model: authentik_core.user
+    id: user-svc-secagent
+    state: present
+    identifiers:
+      username: !Context svc_username
+    attrs:
+      type: service_account
+      name: "secagent service account (svc-secagent)"
+
+  - model: authentik_core.token
+    id: token-svc-secagent-app-password
+    state: present
+    identifiers:
+      identifier: "service-account-svc-secagent-password"
+    attrs:
+      user: !KeyOf user-svc-secagent
+      intent: app_password
+      key: !Env SECAGENT_SVC_APP_PASSWORD
+      expiring: false
+      description: "secagent's client_credentials app-password — see secagent-service.yaml header"
+
   - model: authentik_providers_oauth2.oauth2provider
     id: provider-secagent-service
     identifiers:
@@ -31,7 +73,6 @@ entries:
       name: secagent-service
       client_type: confidential
       client_id: !Context service_client_id
-      client_secret: !Env SECAGENT_SERVICE_CLIENT_SECRET
       grant_types:
         - client_credentials
       # authorization_flow/invalidation_flow/redirect_uris are never actually USED for a pure
@@ -49,6 +90,10 @@ entries:
       # https://secsso.sec.internal/ every verifier config expects — see secchat-service.yaml's
       # identical note for the full explanation.
       issuer_mode: global
+      # Deliberately NOT the model default (hashed_user_id) — with the creds-path grant above
+      # this makes the issued sub the literal "svc-secagent" that secrouter's
+      # security.oidc.serviceSubjects names (see secdeploy's wiring.secrouter_oidc_config).
+      sub_mode: user_username
       include_claims_in_id_token: true
       property_mappings:
         - !Find [authentik_providers_oauth2.scopemapping, [scope_name, openid]]

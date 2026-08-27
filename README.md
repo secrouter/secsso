@@ -3,8 +3,10 @@
 **SSO for teams starting from zero.** SecSSO packages, brands, and pre-wires
 [Authentik](https://goauthentik.io) so the suite gets OIDC single sign-on out of the box —
 and it's built to be **dropped** the moment you have your own IdP (Okta, Entra, Keycloak,
-Ping). SecSSO and SecCert are the suite's *optional* "identity & trust" tier: provide them
-when you have nothing, skip them when you do.
+Ping). SecSSO and [SecCert](https://github.com/secrouter/seccert) are the suite's *optional*
+"identity & trust" tier: provide them when you have nothing, skip them when you do.
+
+Part of the [SecRouter suite](https://github.com/secrouter/secdeploy#the-suite).
 
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 
@@ -12,8 +14,9 @@ when you have nothing, skip them when you do.
 
 - A standard Authentik topology (server + worker + Postgres + Redis) via Compose.
 - **Blueprints** that pre-wire the suite's OIDC apps — `secrouter-oidc.yaml` creates the
-  SecRouter provider + application with `client_id = secrouter` (matching SecRouter's OIDC
-  audience) and a **groups** scope so per-group policy works from the token.
+  [SecRouter](https://github.com/secrouter/secrouter) provider + application with
+  `client_id = secrouter` (matching SecRouter's OIDC audience) and a **groups** scope so
+  per-group policy works from the token.
 - SecSSO **branding** on the login/consent screens.
 - A control helper that brings it up and prints the exact OIDC config to paste into SecRouter.
 
@@ -45,26 +48,37 @@ Paste that into SecRouter's `secrouter.config.json`, log in to the Authentik adm
 
 SecSSO is optional. If you run Okta/Entra/Keycloak/Ping, **don't deploy it** — point
 SecRouter's `security.oidc.issuer` / `audience` at your existing provider and create an
-equivalent OIDC app there (public client, PKCE, a `groups` claim). In SecDeploy this is the
-`--without secsso` path. The blueprints here double as a reference for what to configure.
+equivalent OIDC app there (public client, PKCE, a `groups` claim). In
+[SecDeploy](https://github.com/secrouter/secdeploy) this is the `--without secsso` path. The
+blueprints here double as a reference for what to configure.
 
 ## Wiring the rest of the suite
 
-`blueprints/secrouter-oidc.yaml`, `blueprints/secagent-*.yaml`,
-`blueprints/secchatng.yaml`, and `blueprints/secrecorder.yaml` are applied automatically.
-`secchatng.yaml` wires the native **SecChat** — the canonical chat component SecDeploy ships by
-default (the blueprint + login-client id keep the `secchatng` slug from the rebuild; users only ever
-see "SecChat"): one confidential login client (`secchatng`) its backend uses
-to run the Authorization Code + PKCE dance itself, server-side (a BFF — the browser only ever
-gets an httpOnly session cookie, never a token), so there's no separate
-service account to provision. `secrecorder.yaml` does the same for **SecRecorder**'s optional
-browser-login BFF — one confidential login client (`secrecorder`, a brand-new client) for its
-transcription/summarization console; its SSO is off unless the operator sets SecRecorder's
-`SECRECORDER_OIDC_*` env (turnkey via `secdeploy`).
+`blueprints/secrouter-oidc.yaml`, `blueprints/secrouter-admin-console.yaml`,
+`blueprints/secagent-*.yaml`, `blueprints/secchatng.yaml`, `blueprints/secchat-service.yaml`,
+`blueprints/secrecorder.yaml`, and `blueprints/secllm.yaml` are all applied automatically —
+every current suite component that speaks OIDC already ships its own blueprint.
+`secchatng.yaml` wires the native **[SecChat](https://github.com/secrouter/secchat)** — the
+canonical chat component SecDeploy ships by default (the blueprint + login-client id keep the
+`secchatng` slug from the rebuild; users only ever see "SecChat"): one confidential login
+client (`secchatng`) its backend uses to run the Authorization Code + PKCE dance itself,
+server-side (a BFF — the browser only ever gets an httpOnly session cookie, never a token), so
+there's no separate service account to provision. `secrecorder.yaml` does the same for
+**[SecRecorder](https://github.com/secrouter/secrecorder)**'s optional browser-login BFF — one
+confidential login client (`secrecorder`, a brand-new client) for its transcription/summarization
+console; its SSO is off unless the operator sets SecRecorder's `SECRECORDER_OIDC_*` env
+(turnkey via `secdeploy`). `secllm.yaml` gates the **[SecLLM](https://github.com/secrouter/secllm)**
+admin console the same way (client id `secllm`) — inference traffic itself keeps SecRouter's
+shared token, this only covers the `/admin` UI — and provisions a `secllm-admins` group; add
+operators to it to grant SecLLM admin.
 
-To add SSO for a suite service that doesn't ship its own blueprint — the **SecCert** console
-or the **SecLLM** UI — copy `blueprints/suite-apps.yaml.example` → `suite-apps.yaml`
-(auto-applied), set the redirect URIs, and restart. Each is one provider + application entry.
+Already-wired suite OIDC clients are listed in full — client id, grant type, what each gates —
+in [docs/configuration.md](docs/configuration.md).
+
+To add SSO for a suite service that doesn't ship its own blueprint — currently just the
+**SecCert** console, since every other current component above already has one — copy
+`blueprints/suite-apps.yaml.example` → `suite-apps.yaml` (auto-applied), set the redirect
+URIs, and restart. Each is one provider + application entry.
 
 ## Branding
 
@@ -82,7 +96,7 @@ works unchanged in an air-gapped enclave:
 | `secsso-logo.svg` | login/consent card header (theme-adaptive — light or dark) |
 | `secsso-icon.svg` | browser favicon |
 | `secsso-background.svg` | full-bleed login background (hexagon lattice) |
-| `icon-secrouter.svg`, `icon-secagent.svg`, `icon-secchat.svg`, `icon-secrecorder.svg` | app tiles in the user portal |
+| `icon-secrouter.svg`, `icon-secagent.svg`, `icon-secchat.svg`, `icon-secrecorder.svg`, `icon-secllm.svg` | app tiles in the user portal |
 
 **Customize** by dropping your own files into `media/` (keep the names, or repoint the paths
 in `branding.yaml` / the app blueprints' `meta_icon`) and re-running `./bootstrap/secsso.sh up`.
@@ -114,6 +128,8 @@ Groups referenced by a user are created too — name them to match SecRouter's
 
 ## Configuration (`.env`)
 
+The core stack needs just a few variables to come up:
+
 | Variable | Meaning |
 |---|---|
 | `AUTHENTIK_TAG` | Authentik image tag — pin to the current stable release |
@@ -123,6 +139,10 @@ Groups referenced by a user are created too — name them to match SecRouter's
 | `SECSSO_EXTERNAL_URL` | URL clients use; the OIDC issuer is built from it |
 | `SECSSO_HTTP_PORT` / `SECSSO_HTTPS_PORT` | published ports (9000 / 9443) |
 | `SECROUTER_REDIRECT_URI` | SecRouter admin-console callback (blueprint redirect URI) |
+
+`.env.example` has every variable, including the per-app OIDC client secrets/redirect URIs
+(SecChat, SecRecorder, SecLLM, SecAgent). [docs/configuration.md](docs/configuration.md) tables
+all of them, one row each, with defaults and which blueprint reads each one.
 
 ## Backup
 
@@ -146,10 +166,25 @@ the users' initial passwords in `users.generated.yaml` — see
   it in containers (Colima on macOS, Podman on Fedora) rather than as native systemd units —
   it's the "we provide SSO if you have none" path, typically not the hardened-FIPS-native
   host. In a FIPS enclave you'll usually federate to an existing accredited IdP instead.
+  See [docs/control-validation.md](docs/control-validation.md) for the full identity-layer
+  control mapping, including the FIPS/accreditation posture and what's explicitly a gap.
 - **Third-party.** Authentik is not vendored here; its images are pulled at deploy time
   under its own license (see [NOTICE](NOTICE)).
 - Run behind a TLS-terminating proxy (or Authentik's `:9443`) in production; set
   `SECSSO_EXTERNAL_URL` to the `https://` address so issuer/redirect URIs match.
+
+## Documentation
+
+This README covers quickstart and day-to-day operation. For depth, see
+[`docs/`](docs/index.md):
+
+- [docs/configuration.md](docs/configuration.md) — every `.env` variable, one row each.
+- [docs/production.md](docs/production.md) — TLS, secrets, backups, MFA, hardening, and the
+  FIPS/accreditation posture.
+- [docs/control-validation.md](docs/control-validation.md) — the NIST SP 800-171 control
+  mapping for the identity layer.
+
+See [CHANGELOG.md](CHANGELOG.md) for release history.
 
 ## License
 

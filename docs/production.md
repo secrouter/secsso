@@ -11,7 +11,9 @@ in the blueprints match what browsers actually hit. A mismatch here is the usual
 ## Secrets
 `AUTHENTIK_SECRET_KEY`, `PG_PASS`, and the bootstrap token live in `.env` (git-ignored).
 Generate them with `openssl rand -base64 …`, store them in your secrets manager, and rotate
-the bootstrap token after first use. Never commit `.env`.
+the bootstrap token after first use. Never commit `.env`. See
+[configuration.md](configuration.md) for every variable this repo reads, including the
+per-app OIDC client secrets that auto-generate on first deploy if left blank.
 
 ## Backups
 Postgres is the source of truth — users, groups, flows, and the applied provider/application
@@ -38,3 +40,8 @@ Authentik's cryptography is **not** FIPS-validated. In a FIPS/CMMC enclave, fede
 suite to an **existing accredited IdP** (the `--without secsso` path) rather than making
 SecSSO the identity authority. SecSSO is the right fit for evaluation, lab, and lower
 environments, or where a validated IdP isn't required.
+
+See [control-validation.md](control-validation.md) for the full NIST SP 800-171 control
+mapping for the identity layer (IA/AC/AU), what Authentik provides upstream vs. what this
+repo's blueprints add, and the explicit gaps (no audit hash-chain, no evidence-export
+tooling).

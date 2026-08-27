@@ -54,19 +54,17 @@ services:
       AUTHENTIK_BOOTSTRAP_PASSWORD: ${AUTHENTIK_BOOTSTRAP_PASSWORD:-}
       AUTHENTIK_BOOTSTRAP_TOKEN: ${AUTHENTIK_BOOTSTRAP_TOKEN:-}
       AUTHENTIK_BOOTSTRAP_EMAIL: ${AUTHENTIK_BOOTSTRAP_EMAIL:-admin@secrouter.local}
-      # Read by blueprints/secagent-service.yaml's `!Env` — compose only passes through .env
-      # keys a service's `environment:` block explicitly lists, so this must be here even
-      # though the value itself lives in .env (see SECAGENT_SERVICE_CLIENT_SECRET there).
-      SECAGENT_SERVICE_CLIENT_SECRET: ${SECAGENT_SERVICE_CLIENT_SECRET:-}
-      # SecChat's shared service identity (blueprints/secchat-service.yaml's `!Env`s) — the
-      # provider's own client_secret (unused dead weight, see that file's header) and the
-      # svc-secchat service-account app-password (the value that actually authenticates
-      # SecChat's client_credentials grant, see secchat-service.yaml's "Getting an exact sub").
-      # Same "compose only passes through what environment: explicitly lists" requirement as
-      # SECAGENT_SERVICE_CLIENT_SECRET above — blank here means the blueprint apply either fails
-      # (app-password key required) or misprovisions (empty provider secret).
-      SECCHAT_SERVICE_PROVIDER_SECRET: ${SECCHAT_SERVICE_PROVIDER_SECRET:-}
+      # The suite service identities' app-password Token keys (blueprints/secagent-service.yaml
+      # + secchat-service.yaml's `!Env`s) — the values that actually authenticate the
+      # svc-secagent / svc-secchat client_credentials grants (see each file's "exact sub"
+      # header). Compose only passes through .env keys a service's `environment:` block
+      # explicitly lists, so these must be here even though the values live in .env — blank
+      # means the blueprint apply fails (app-password key required).
+      SECAGENT_SVC_APP_PASSWORD: ${SECAGENT_SVC_APP_PASSWORD:-}
       SECCHAT_SVC_APP_PASSWORD: ${SECCHAT_SVC_APP_PASSWORD:-}
+      # SecRouter's own PKCE-client redirect URI (client_id secrouter) — blueprints/
+      # secrouter-oidc.yaml's `!Env`; distinct from the admin-console client below.
+      SECROUTER_REDIRECT_URI: ${SECROUTER_REDIRECT_URI:-}
       # SecRouter admin console's OIDC callback + launch URL — blueprints/secrouter-admin-console.yaml's
       # `!Env`s, same topology-derived-redirect pattern as SECCHATNG_REDIRECT_URI/LAUNCH_URL below.
       SECROUTER_ADMIN_CONSOLE_REDIRECT_URI: ${SECROUTER_ADMIN_CONSOLE_REDIRECT_URI:-}
@@ -126,19 +124,17 @@ services:
       AUTHENTIK_BOOTSTRAP_PASSWORD: ${AUTHENTIK_BOOTSTRAP_PASSWORD:-}
       AUTHENTIK_BOOTSTRAP_TOKEN: ${AUTHENTIK_BOOTSTRAP_TOKEN:-}
       AUTHENTIK_BOOTSTRAP_EMAIL: ${AUTHENTIK_BOOTSTRAP_EMAIL:-admin@secrouter.local}
-      # Read by blueprints/secagent-service.yaml's `!Env` — compose only passes through .env
-      # keys a service's `environment:` block explicitly lists, so this must be here even
-      # though the value itself lives in .env (see SECAGENT_SERVICE_CLIENT_SECRET there).
-      SECAGENT_SERVICE_CLIENT_SECRET: ${SECAGENT_SERVICE_CLIENT_SECRET:-}
-      # SecChat's shared service identity (blueprints/secchat-service.yaml's `!Env`s) — the
-      # provider's own client_secret (unused dead weight, see that file's header) and the
-      # svc-secchat service-account app-password (the value that actually authenticates
-      # SecChat's client_credentials grant, see secchat-service.yaml's "Getting an exact sub").
-      # Same "compose only passes through what environment: explicitly lists" requirement as
-      # SECAGENT_SERVICE_CLIENT_SECRET above — blank here means the blueprint apply either fails
-      # (app-password key required) or misprovisions (empty provider secret).
-      SECCHAT_SERVICE_PROVIDER_SECRET: ${SECCHAT_SERVICE_PROVIDER_SECRET:-}
+      # The suite service identities' app-password Token keys (blueprints/secagent-service.yaml
+      # + secchat-service.yaml's `!Env`s) — the values that actually authenticate the
+      # svc-secagent / svc-secchat client_credentials grants (see each file's "exact sub"
+      # header). Compose only passes through .env keys a service's `environment:` block
+      # explicitly lists, so these must be here even though the values live in .env — blank
+      # means the blueprint apply fails (app-password key required).
+      SECAGENT_SVC_APP_PASSWORD: ${SECAGENT_SVC_APP_PASSWORD:-}
       SECCHAT_SVC_APP_PASSWORD: ${SECCHAT_SVC_APP_PASSWORD:-}
+      # SecRouter's own PKCE-client redirect URI (client_id secrouter) — blueprints/
+      # secrouter-oidc.yaml's `!Env`; distinct from the admin-console client below.
+      SECROUTER_REDIRECT_URI: ${SECROUTER_REDIRECT_URI:-}
       # SecRouter admin console's OIDC callback + launch URL — blueprints/secrouter-admin-console.yaml's
       # `!Env`s, same topology-derived-redirect pattern as SECCHATNG_REDIRECT_URI/LAUNCH_URL below.
       SECROUTER_ADMIN_CONSOLE_REDIRECT_URI: ${SECROUTER_ADMIN_CONSOLE_REDIRECT_URI:-}

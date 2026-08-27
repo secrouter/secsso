@@ -18,16 +18,39 @@ ext_url() { grep -E '^SECSSO_EXTERNAL_URL=' .env | cut -d= -f2- | tr -d '"' | se
 env_val() { local v; v="$(grep -E "^${1}=" .env 2>/dev/null | tail -n1 | cut -d= -f2- | tr -d '"')"; echo "${v:-${2:-}}"; }
 
 oidc_config() {
-  local url iss cid
-  url="$(ext_url)"; cid="secrouter"; iss="${url}/application/o/secrouter/"
+  # Mirrors secdeploy's wiring.secrouter_oidc_config: the service providers run with
+  # issuer_mode: global, so their tokens carry the bare root as `iss` (NOT the per-provider
+  # /application/o/<slug>/ URL), and the JWKS must be named explicitly (auto-discovery from
+  # the root issuer alone won't resolve).
+  local url cid
+  url="$(ext_url)"; cid="secrouter"
   echo ""
   echo "SecRouter OIDC — point SecRouter's security.oidc at this:"
-  echo "  issuer:    ${iss}"
-  echo "  discovery: ${iss}.well-known/openid-configuration"
+  echo "  issuer:    ${url}/    (issuer_mode: global — the bare root, suite-wide)"
+  echo "  jwksUri:   ${url}/application/o/secrouter/jwks/"
   echo "  audience:  ${cid}    (client_id; PKCE public client)"
   echo ""
   echo '  secrouter.config.json →'
-  echo "    \"oidc\": { \"issuer\": \"${iss}\", \"audience\": \"${cid}\", \"requireMfa\": true }"
+  echo "    \"oidc\": { \"issuer\": \"${url}/\", \"audience\": \"${cid}\","
+  echo "              \"jwksUri\": \"${url}/application/o/secrouter/jwks/\","
+  echo "              \"requireMfa\": true,"
+  echo '              "serviceSubjects": ["svc-secagent", "svc-secchat"],'
+  echo '              "delegatingSubjects": ["svc-secchat"] }'
+  echo "  (serviceSubjects: only list identities actually deployed; delegatingSubjects:"
+  echo "   svc-secchat forwards X-Sec-Acting-User — see secrouter's security/types.ts)"
+}
+
+secagent_config() {
+  # The composite client_secret secagent must present (see blueprints/secagent-service.yaml's
+  # header): base64("svc-secagent:" + SECAGENT_SVC_APP_PASSWORD). Presenting this — not the
+  # provider's own stored secret — routes the grant onto Authentik's creds path, so with
+  # sub_mode: user_username the issued sub is exactly "svc-secagent".
+  local pw
+  pw="$(env_val SECAGENT_SVC_APP_PASSWORD)"
+  [ -n "$pw" ] || { echo "SECAGENT_SVC_APP_PASSWORD is blank in .env — deploy/seed the stack first" >&2; exit 1; }
+  echo ""
+  echo "secagent service identity (sub: svc-secagent) — set on the SecAgent host:"
+  echo "  SECAGENT_CLIENT_SECRET=$(printf 'svc-secagent:%s' "$pw" | base64 | tr -d '\n')"
 }
 
 case "${1:-help}" in
@@ -48,6 +71,7 @@ case "${1:-help}" in
     compose exec -T server ak healthcheck >/dev/null 2>&1 && echo "  ✓ server healthy" || echo "  server not ready"
     ;;
   oidc-config) require_env; oidc_config ;;
+  secagent-config) require_env; secagent_config ;;
   backup)
     # Dump the state SecDeploy's encrypted-backup flow collects for this stack (it calls this
     # verb, then encrypts the dir). Also usable standalone. Stack must be UP.
@@ -89,6 +113,7 @@ SecSSO — Authentik control helper
   ./bootstrap/secsso.sh up            bring the stack up, wait, print SecRouter OIDC config
   ./bootstrap/secsso.sh status        health + compose ps
   ./bootstrap/secsso.sh oidc-config   print the SecRouter OIDC issuer / audience
+  ./bootstrap/secsso.sh secagent-config  print the composite SECAGENT_CLIENT_SECRET (sub: svc-secagent)
   ./bootstrap/secsso.sh backup <dir>  dump Authentik Postgres + users blueprint + .env into <dir>
   ./bootstrap/secsso.sh restore <dir> reinitialize the stack from <dir> (REPLACES state)
   ./bootstrap/secsso.sh logs [svc]    follow logs
